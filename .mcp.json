@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "laravel-boost": {
+      "command": "C:/Users/WinUserX/.config/herd/bin/php84/php.exe",
+      "args": [
+        "C:/Users/WinUserX/Pictures/Ferreteria/app/artisan",
+        "boost:mcp"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    }
+  }
+}
