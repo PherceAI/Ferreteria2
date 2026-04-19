@@ -1,7 +1,7 @@
 import { Bell, BellOff, X } from 'lucide-react';
 import { useState } from 'react';
-import { useWebPush } from '@/hooks/use-web-push';
 import { Button } from '@/components/ui/button';
+import { useWebPush } from '@/hooks/use-web-push';
 
 /**
  * Banner fijo en la parte inferior de la pantalla.

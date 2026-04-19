@@ -10,9 +10,11 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
     const output = new Uint8Array(rawData.length);
+
     for (let i = 0; i < rawData.length; ++i) {
         output[i] = rawData.charCodeAt(i);
     }
+
     return output;
 }
 
@@ -53,7 +55,9 @@ export function useWebPush(): WebPushState {
 
     // Verificar si ya hay una suscripción activa en este dispositivo
     useEffect(() => {
-        if (!isSupported || !vapidPublicKey) return;
+        if (!isSupported || !vapidPublicKey) {
+            return;
+        }
 
         navigator.serviceWorker.ready
             .then((registration) => registration.pushManager.getSubscription())
@@ -62,9 +66,12 @@ export function useWebPush(): WebPushState {
     }, [isSupported, vapidPublicKey]);
 
     const subscribe = useCallback(async (): Promise<boolean> => {
-        if (!isSupported || !vapidPublicKey) return false;
+        if (!isSupported || !vapidPublicKey) {
+            return false;
+        }
 
         setIsLoading(true);
+
         try {
             // 1. Pedir permiso al navegador
             const result = await Notification.requestPermission();
@@ -109,6 +116,7 @@ export function useWebPush(): WebPushState {
             });
 
             setIsSubscribed(true);
+
             return true;
         } catch {
             return false;
@@ -118,15 +126,19 @@ export function useWebPush(): WebPushState {
     }, [isSupported, vapidPublicKey]);
 
     const unsubscribe = useCallback(async (): Promise<void> => {
-        if (!isSupported) return;
+        if (!isSupported) {
+            return;
+        }
 
         setIsLoading(true);
+
         try {
             const registration = await navigator.serviceWorker.ready;
             const subscription = await registration.pushManager.getSubscription();
 
             if (!subscription) {
                 setIsSubscribed(false);
+
                 return;
             }
 
