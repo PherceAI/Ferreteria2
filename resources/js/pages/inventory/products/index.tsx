@@ -1,14 +1,13 @@
 import { Head } from '@inertiajs/react';
 import {
     AlertTriangle,
-    Package,
     PackageX,
     Search,
     TrendingUp,
     Truck,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
 // =======================
@@ -121,16 +120,18 @@ export default function ProductsIndex() {
                     {kpiData.map((kpi) => (
                         <Card
                             key={kpi.title}
-                            className="border border-neutral-200 shadow-none dark:border-zinc-800 p-5 flex flex-col justify-between"
+                            className="flex flex-col justify-between border border-neutral-200 p-5 shadow-none dark:border-zinc-800"
                         >
-                            <div className="flex flex-row items-center justify-between mb-3">
+                            <div className="mb-3 flex flex-row items-center justify-between">
                                 <div className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
                                     {kpi.title}
                                 </div>
                                 <div
                                     className={`flex h-8 w-8 items-center justify-center rounded-md ${kpi.bg}`}
                                 >
-                                    <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+                                    <kpi.icon
+                                        className={`h-4 w-4 ${kpi.color}`}
+                                    />
                                 </div>
                             </div>
                             <div>
@@ -149,8 +150,8 @@ export default function ProductsIndex() {
                 <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
                     <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-zinc-800">
                         {/* Barra de Búsqueda */}
-                        <div className="relative w-full max-w-sm flex items-center">
-                            <Search className="absolute left-3 h-4 w-4 text-neutral-500 dark:text-zinc-400 pointer-events-none" />
+                        <div className="relative flex w-full max-w-sm items-center">
+                            <Search className="pointer-events-none absolute left-3 h-4 w-4 text-neutral-500 dark:text-zinc-400" />
                             <Input
                                 type="search"
                                 placeholder="Buscar código o nombre de producto..."
@@ -164,29 +165,50 @@ export default function ProductsIndex() {
                         <table className="w-full text-left text-sm">
                             <thead className="border-b border-neutral-200 bg-neutral-50/50 text-neutral-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium">Código</th>
-                                    <th className="px-4 py-3 font-medium">Nombre</th>
-                                    <th className="px-4 py-3 font-medium text-center">Costo</th>
-                                    <th className="px-4 py-3 font-medium text-center">Precio Venta</th>
-                                    <th className="px-4 py-3 font-medium text-center">Min</th>
-                                    <th className="px-4 py-3 font-medium text-center">Stock Actual</th>
+                                    <th className="px-4 py-3 font-medium">
+                                        Código
+                                    </th>
+                                    <th className="px-4 py-3 font-medium">
+                                        Nombre
+                                    </th>
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Costo
+                                    </th>
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Precio Venta
+                                    </th>
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Min
+                                    </th>
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Stock Actual
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-zinc-800">
                                 {catalogData.map((item) => {
-                                    const isCritical = item.actualStock < item.minStock;
+                                    const isCritical =
+                                        item.actualStock < item.minStock;
                                     const isWarning =
                                         item.actualStock >= item.minStock &&
-                                        item.actualStock <= item.minStock * 1.25;
+                                        item.actualStock <=
+                                            item.minStock * 1.25;
 
-                                    let stockColor = 'text-green-600 dark:text-green-500';
-                                    let stockBg = 'bg-green-50 dark:bg-green-900/20';
+                                    let stockColor =
+                                        'text-green-600 dark:text-green-500';
+                                    let stockBg =
+                                        'bg-green-50 dark:bg-green-900/20';
+
                                     if (isCritical) {
-                                        stockColor = 'text-red-600 dark:text-red-500';
-                                        stockBg = 'bg-red-50 dark:bg-red-900/20';
+                                        stockColor =
+                                            'text-red-600 dark:text-red-500';
+                                        stockBg =
+                                            'bg-red-50 dark:bg-red-900/20';
                                     } else if (isWarning) {
-                                        stockColor = 'text-amber-600 dark:text-amber-500';
-                                        stockBg = 'bg-amber-50 dark:bg-amber-900/20';
+                                        stockColor =
+                                            'text-amber-600 dark:text-amber-500';
+                                        stockBg =
+                                            'bg-amber-50 dark:bg-amber-900/20';
                                     }
 
                                     return (
@@ -194,25 +216,25 @@ export default function ProductsIndex() {
                                             key={item.code}
                                             className="transition-colors hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50"
                                         >
-                                            <td className="whitespace-nowrap px-4 py-3 font-medium text-neutral-900 dark:text-zinc-100">
+                                            <td className="px-4 py-3 font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
                                                 {item.code}
                                             </td>
                                             <td className="px-4 py-3 text-neutral-700 dark:text-zinc-300">
                                                 {item.name}
                                             </td>
-                                            <td className="px-4 py-3 text-neutral-500 text-center">
+                                            <td className="px-4 py-3 text-center text-neutral-500">
                                                 ${item.cost.toFixed(2)}
                                             </td>
-                                            <td className="px-4 py-3 font-semibold text-neutral-900 dark:text-zinc-100 text-center">
+                                            <td className="px-4 py-3 text-center font-semibold text-neutral-900 dark:text-zinc-100">
                                                 ${item.price.toFixed(2)}
                                             </td>
-                                            <td className="px-4 py-3 text-neutral-500 text-center">
+                                            <td className="px-4 py-3 text-center text-neutral-500">
                                                 {item.minStock}
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <Badge
                                                     variant="secondary"
-                                                    className={`${stockBg} ${stockColor} hover:bg-transparent shadow-none`}
+                                                    className={`${stockBg} ${stockColor} shadow-none hover:bg-transparent`}
                                                 >
                                                     {item.actualStock}
                                                 </Badge>

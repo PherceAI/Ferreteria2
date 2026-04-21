@@ -7,7 +7,6 @@ import {
     Banknote,
     Building2,
     CalendarDays,
-    Clock,
     Package,
     ShieldAlert,
     ShoppingCart,
@@ -23,7 +22,7 @@ import {
     XAxis,
     YAxis,
 } from 'recharts';
-import { Badge } from '@/components/ui/badge';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { dashboard } from '@/routes';
@@ -31,8 +30,15 @@ import type { Auth } from '@/types';
 
 function greeting(): string {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Buenos días';
-    if (hour < 18) return 'Buenas tardes';
+
+    if (hour < 12) {
+return 'Buenos días';
+}
+
+    if (hour < 18) {
+return 'Buenas tardes';
+}
+
     return 'Buenas noches';
 }
 
@@ -97,7 +103,9 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-zinc-400">
                         <Building2 className="h-3.5 w-3.5" />
                         <span>{branchName}</span>
-                        <span className="text-neutral-300 dark:text-zinc-700">·</span>
+                        <span className="text-neutral-300 dark:text-zinc-700">
+                            ·
+                        </span>
                         <CalendarDays className="h-3.5 w-3.5" />
                         <span className="capitalize">{formatDate()}</span>
                     </div>
@@ -159,7 +167,9 @@ export default function Dashboard() {
                             </div>
                             <div className="mt-1 flex items-center text-xs text-red-600">
                                 <ArrowUpRight className="mr-1 h-3 w-3" />
-                                <span className="font-medium">+5% alerta de liquidez</span>
+                                <span className="font-medium">
+                                    +5% alerta de liquidez
+                                </span>
                             </div>
                         </CardContent>
                     </Card>
@@ -178,7 +188,9 @@ export default function Dashboard() {
                             </div>
                             <div className="mt-1 flex items-center text-xs text-red-600">
                                 <AlertTriangle className="mr-1 h-3 w-3" />
-                                <span className="font-medium">Atención requerida</span>
+                                <span className="font-medium">
+                                    Atención requerida
+                                </span>
                             </div>
                         </CardContent>
                     </Card>
@@ -194,7 +206,11 @@ export default function Dashboard() {
                         <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={branchSalesData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        vertical={false}
+                                        stroke="#e5e5e5"
+                                    />
                                     <XAxis
                                         dataKey="name"
                                         axisLine={false}
@@ -210,9 +226,17 @@ export default function Dashboard() {
                                     />
                                     <Tooltip
                                         cursor={{ fill: 'transparent' }}
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e5e5' }}
+                                        contentStyle={{
+                                            borderRadius: '8px',
+                                            border: '1px solid #e5e5e5',
+                                        }}
                                     />
-                                    <Bar dataKey="total" fill="#dc2626" radius={[4, 4, 0, 0]} barSize={40} />
+                                    <Bar
+                                        dataKey="total"
+                                        fill="#dc2626"
+                                        radius={[4, 4, 0, 0]}
+                                        barSize={40}
+                                    />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -226,7 +250,11 @@ export default function Dashboard() {
                         <div className="h-[250px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={saleTrendsData}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                                    <CartesianGrid
+                                        strokeDasharray="3 3"
+                                        vertical={false}
+                                        stroke="#e5e5e5"
+                                    />
                                     <XAxis
                                         dataKey="name"
                                         axisLine={false}
@@ -241,7 +269,10 @@ export default function Dashboard() {
                                         tickFormatter={(value) => `$${value}`}
                                     />
                                     <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e5e5' }}
+                                        contentStyle={{
+                                            borderRadius: '8px',
+                                            border: '1px solid #e5e5e5',
+                                        }}
                                     />
                                     <Line
                                         type="monotone"
@@ -269,7 +300,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                     {/* Top 5 Productos */}
                     <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
-                        <CardHeader className="pb-3 pt-6">
+                        <CardHeader className="pt-6 pb-3">
                             <CardTitle className="text-base font-medium tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                                 Top 5 Más Vendidos
                             </CardTitle>
@@ -277,7 +308,10 @@ export default function Dashboard() {
                         <CardContent>
                             <div className="flex flex-col gap-4">
                                 {topProducts.map((p) => (
-                                    <div key={p.id} className="flex items-center justify-between">
+                                    <div
+                                        key={p.id}
+                                        className="flex items-center justify-between"
+                                    >
                                         <div className="flex items-center gap-3">
                                             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 dark:bg-zinc-800">
                                                 <Package className="h-4 w-4 text-neutral-500" />
@@ -299,7 +333,7 @@ export default function Dashboard() {
 
                     {/* Ticket Promedio */}
                     <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
-                        <CardHeader className="pb-3 pt-6">
+                        <CardHeader className="pt-6 pb-3">
                             <CardTitle className="text-base font-medium tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                                 Ticket Promedio
                             </CardTitle>
@@ -307,11 +341,14 @@ export default function Dashboard() {
                         <CardContent>
                             <div className="flex flex-col gap-4">
                                 {ticketsAverage.map((t) => (
-                                    <div key={t.branch} className="flex items-center justify-between border-b border-dashed border-neutral-200 pb-2 last:border-0 dark:border-zinc-800">
+                                    <div
+                                        key={t.branch}
+                                        className="flex items-center justify-between border-b border-dashed border-neutral-200 pb-2 last:border-0 dark:border-zinc-800"
+                                    >
                                         <span className="text-sm text-neutral-600 dark:text-zinc-400">
                                             {t.branch}
                                         </span>
-                                        <span className="text-sm font-semibold text-neutral-900 dark:text-zinc-50 tracking-tight">
+                                        <span className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-zinc-50">
                                             {t.value}
                                         </span>
                                     </div>
@@ -322,7 +359,7 @@ export default function Dashboard() {
 
                     {/* Semáforo Alertas */}
                     <Card className="border border-red-200 bg-red-50/50 shadow-none dark:border-red-900/50 dark:bg-red-950/20">
-                        <CardHeader className="pb-3 pt-6">
+                        <CardHeader className="pt-6 pb-3">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-[-0.02em] text-red-700 dark:text-red-500">
                                 <ShieldAlert className="h-5 w-5" />
                                 Urgencias
@@ -333,15 +370,21 @@ export default function Dashboard() {
                                 <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800">
                                     <div className="mt-0.5 h-2 w-2 rounded-full bg-red-500"></div>
                                     <div className="text-sm text-neutral-700 dark:text-zinc-300">
-                                        <span className="font-semibold text-neutral-900 dark:text-zinc-100">Auditoría: </span>
-                                        Se han realizado 4 anulaciones sospechosas en Sucursal Norte hoy.
+                                        <span className="font-semibold text-neutral-900 dark:text-zinc-100">
+                                            Auditoría:{' '}
+                                        </span>
+                                        Se han realizado 4 anulaciones
+                                        sospechosas en Sucursal Norte hoy.
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800">
                                     <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-500"></div>
                                     <div className="text-sm text-neutral-700 dark:text-zinc-300">
-                                        <span className="font-semibold text-neutral-900 dark:text-zinc-100">Cuentas: </span>
-                                        Cliente "Constructora Silva" sobrepasó límite de crédito vigente ($5,000).
+                                        <span className="font-semibold text-neutral-900 dark:text-zinc-100">
+                                            Cuentas:{' '}
+                                        </span>
+                                        Cliente "Constructora Silva" sobrepasó
+                                        límite de crédito vigente ($5,000).
                                     </div>
                                 </div>
                             </div>

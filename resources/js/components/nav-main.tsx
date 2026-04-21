@@ -59,7 +59,10 @@ export function NavMain({
                                     <CollapsibleTrigger asChild>
                                         <SidebarMenuButton
                                             tooltip={{ children: item.title }}
-                                            isActive={isCurrentUrl(item.href) || item.isActive}
+                                            isActive={
+                                                isCurrentUrl(item.href) ||
+                                                item.isActive
+                                            }
                                         >
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
@@ -69,13 +72,22 @@ export function NavMain({
                                     <CollapsibleContent>
                                         <SidebarMenuSub>
                                             {item.items.map((subItem) => (
-                                                <SidebarMenuSubItem key={subItem.title}>
+                                                <SidebarMenuSubItem
+                                                    key={subItem.title}
+                                                >
                                                     <SidebarMenuSubButton
                                                         asChild
-                                                        isActive={isCurrentUrl(subItem.href)}
+                                                        isActive={isCurrentUrl(
+                                                            subItem.href,
+                                                        )}
                                                     >
-                                                        <Link href={subItem.href} prefetch>
-                                                            <span>{subItem.title}</span>
+                                                        <Link
+                                                            href={subItem.href}
+                                                            prefetch
+                                                        >
+                                                            <span>
+                                                                {subItem.title}
+                                                            </span>
                                                         </Link>
                                                     </SidebarMenuSubButton>
                                                 </SidebarMenuSubItem>

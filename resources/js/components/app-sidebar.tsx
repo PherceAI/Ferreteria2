@@ -1,6 +1,5 @@
 import { Link } from '@inertiajs/react';
 import {
-    BarChart3,
     BookOpen,
     LayoutGrid,
     Package,
@@ -20,7 +19,6 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
