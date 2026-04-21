@@ -1,16 +1,12 @@
 import { Link } from '@inertiajs/react';
 import {
-    AlertTriangle,
     BarChart3,
     BookOpen,
-    Building2,
     LayoutGrid,
     Package,
     ShoppingCart,
-    Tag,
     Truck,
     Users,
-    Warehouse,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { BranchSwitcher } from '@/components/branch-switcher';
@@ -36,10 +32,26 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
+        title: 'Contabilidad',
+        href: '#',
+        icon: BookOpen,
+        disabled: true,
+    },
+    {
         title: 'Inventario',
         href: '#',
         icon: Package,
-        disabled: true,
+        disabled: false,
+        items: [
+            {
+                title: 'Productos',
+                href: '/inventory/products',
+            },
+            {
+                title: 'Traspasos',
+                href: '#', // TODO: route for transfers
+            },
+        ],
     },
     {
         title: 'Compras',
@@ -48,52 +60,13 @@ const mainNavItems: NavItem[] = [
         disabled: true,
     },
     {
-        title: 'Ventas',
-        href: '#',
-        icon: Tag,
-        disabled: true,
-    },
-    {
-        title: 'Bodega',
-        href: '#',
-        icon: Warehouse,
-        disabled: true,
-    },
-    {
-        title: 'Contabilidad',
-        href: '#',
-        icon: BookOpen,
-        disabled: true,
-    },
-    {
-        title: 'Alertas',
-        href: '#',
-        icon: AlertTriangle,
-        disabled: true,
-    },
-];
-
-const adminNavItems: NavItem[] = [
-    {
-        title: 'Reportes',
-        href: '#',
-        icon: BarChart3,
-        disabled: true,
-    },
-    {
-        title: 'Proveedores',
+        title: 'Logística',
         href: '#',
         icon: Truck,
         disabled: true,
     },
     {
-        title: 'Sucursales',
-        href: '#',
-        icon: Building2,
-        disabled: true,
-    },
-    {
-        title: 'Usuarios',
+        title: 'Empleados',
         href: '#',
         icon: Users,
         disabled: true,
@@ -117,8 +90,6 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} label="Módulos" />
-                <SidebarSeparator />
-                <NavMain items={adminNavItems} label="Administración" />
             </SidebarContent>
 
             <SidebarFooter>
