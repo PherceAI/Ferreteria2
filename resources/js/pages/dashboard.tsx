@@ -25,7 +25,10 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { dashboard } from '@/routes';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import type { Auth } from '@/types';
 
 function greeting(): string {
@@ -89,9 +92,12 @@ export default function Dashboard() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const firstName = auth.user.name.split(' ')[0];
     const branchName = auth.activeBranch?.name ?? 'Sin sucursal';
+    
+    const [showSellers, setShowSellers] = useState(false);
+    const [showCxC, setShowCxC] = useState(false);
 
     return (
-        <>
+        <TooltipProvider>
             <Head title="Dashboard" />
 
             <div className="flex flex-col gap-6 p-6 font-sans">
@@ -115,8 +121,10 @@ export default function Dashboard() {
 
                 {/* 1. CAPA: EL CORAZÓN (KPIs de Supervivencia) */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {/* Venta Total */}
-                    <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
+                    <Card 
+                        className="border border-neutral-200 shadow-none dark:border-zinc-800 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800/50"
+                        onClick={() => setShowSellers(!showSellers)}
+                    >
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
                                 Venta Total del Día
@@ -131,6 +139,13 @@ export default function Dashboard() {
                                 <ArrowUpRight className="mr-1 h-3 w-3" />
                                 <span>+12.5% vs ayer</span>
                             </div>
+                            {showSellers && (
+                                <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-zinc-800 flex flex-col gap-2">
+                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Ana Castillo</span><span className="font-semibold">$2,150.00</span></div>
+                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Pedro Rojas</span><span className="font-semibold">$1,850.50</span></div>
+                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Luis Sánchez</span><span className="font-semibold">$850.00</span></div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -153,8 +168,10 @@ export default function Dashboard() {
                         </CardContent>
                     </Card>
 
-                    {/* CxC Vencidas */}
-                    <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
+                    <Card 
+                        className="border border-neutral-200 shadow-none dark:border-zinc-800 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800/50"
+                        onClick={() => setShowCxC(!showCxC)}
+                    >
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
                                 CxC Vencidas
@@ -171,29 +188,37 @@ export default function Dashboard() {
                                     +5% alerta de liquidez
                                 </span>
                             </div>
+                            {showCxC && (
+                                <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-zinc-800 flex flex-col gap-2">
+                                    <div className="flex justify-between text-xs"><span className="text-red-500 font-medium">Constructora Silva</span><span className="font-semibold text-red-600">$5,420.00</span></div>
+                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Ing. Marco Villacreses</span><span className="font-semibold">$2,100.00</span></div>
+                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Ferretería El Maestro</span><span className="font-semibold">$1,850.00</span></div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
-                    {/* Ruptura Stock */}
-                    <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
-                                Ruptura Stock (Artículos A)
-                            </CardTitle>
-                            <Package className="h-4 w-4 text-neutral-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
-                                4.5%
-                            </div>
-                            <div className="mt-1 flex items-center text-xs text-red-600">
-                                <AlertTriangle className="mr-1 h-3 w-3" />
-                                <span className="font-medium">
-                                    Atención requerida
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <Link href="/inventory/products?filter=low_stock">
+                        <Card className="border border-neutral-200 shadow-none dark:border-zinc-800 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800/50">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
+                                    Ruptura Stock (Artículos A)
+                                </CardTitle>
+                                <Package className="h-4 w-4 text-neutral-500" />
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
+                                    4.5%
+                                </div>
+                                <div className="mt-1 flex items-center text-xs text-red-600">
+                                    <AlertTriangle className="mr-1 h-3 w-3" />
+                                    <span className="font-medium hover:underline">
+                                        Ver productos
+                                    </span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
                 </div>
 
                 {/* 2. CAPA: LA COMPARATIVA (Gráficos) */}
@@ -367,24 +392,25 @@ export default function Dashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-col gap-3">
-                                <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800">
-                                    <div className="mt-0.5 h-2 w-2 rounded-full bg-red-500"></div>
+                                <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800 cursor-pointer hover:bg-red-50/50 transition-colors">
+                                    <div className="mt-0.5 relative h-2 w-2">
+                                        <div className="absolute h-2 w-2 rounded-full bg-red-500 animate-ping opacity-75"></div>
+                                        <div className="relative h-2 w-2 rounded-full bg-red-500"></div>
+                                    </div>
                                     <div className="text-sm text-neutral-700 dark:text-zinc-300">
                                         <span className="font-semibold text-neutral-900 dark:text-zinc-100">
-                                            Auditoría:{' '}
+                                            Discrepancia física:{' '}
                                         </span>
-                                        Se han realizado 4 anulaciones
-                                        sospechosas en Sucursal Norte hoy.
+                                        Factura #001-204-000567. Los tornillos físicos no coinciden con los de la factura electrónica.
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800">
+                                <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
                                     <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-500"></div>
                                     <div className="text-sm text-neutral-700 dark:text-zinc-300">
                                         <span className="font-semibold text-neutral-900 dark:text-zinc-100">
                                             Cuentas:{' '}
                                         </span>
-                                        Cliente "Constructora Silva" sobrepasó
-                                        límite de crédito vigente ($5,000).
+                                        Cemento Chimborazo está a punto de agotarse en sucursal principal.
                                     </div>
                                 </div>
                             </div>
@@ -392,7 +418,7 @@ export default function Dashboard() {
                     </Card>
                 </div>
             </div>
-        </>
+        </TooltipProvider>
     );
 }
 

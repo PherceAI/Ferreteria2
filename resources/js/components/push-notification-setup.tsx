@@ -1,4 +1,4 @@
-import { Bell, BellOff, X } from 'lucide-react';
+import { Bell, BellOff, RefreshCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useWebPush } from '@/hooks/use-web-push';
@@ -6,10 +6,16 @@ import { useWebPush } from '@/hooks/use-web-push';
 /**
  * Banner fijo en la parte inferior de la pantalla.
  *
- * Aparece automáticamente cuando:
- *  - El navegador soporta Web Push
- *  - El usuario aún no ha dado o negado permiso ('default')
- *  - El usuario no tiene suscripción activa en este dispositivo
+ * Aparece en DOS escenarios:
+ *
+ * 1. PRIMER USO: permission === 'default' y sin suscripción.
+ *    Muestra el banner de "Activa las notificaciones".
+ *
+ * 2. RECONEXIÓN SILENCIOSA: permission === 'granted' pero isSubscribed === false.
+ *    Esto ocurre cuando el permiso ya fue otorgado en el pasado pero la
+ *    suscripción no se guardó en el servidor (ej: error de red, bug previo).
+ *    El banner muestra un mensaje de reconexión para que el usuario
+ *    pueda re-suscribirse sin tener que revocar y volver a dar permisos.
  *
  * Al estar fuera del flujo del documento (fixed), no afecta el layout de
  * ninguna página. Desaparece al activar, denegar o cerrar manualmente.
@@ -19,43 +25,70 @@ export function PushNotificationSetup() {
         useWebPush();
     const [dismissed, setDismissed] = useState(false);
 
-    if (!isSupported || permission !== 'default' || isSubscribed || dismissed) {
-        return null;
-    }
+    // No mostrar si: no soportado, ya suscrito, o el usuario cerró el banner
+    if (!isSupported || isSubscribed || dismissed) return null;
+
+    // No mostrar si el permiso está bloqueado (el usuario lo rechazó explícitamente)
+    if (permission === 'denied') return null;
+
+    // Sí mostrar si: permission === 'default' (nunca preguntado)
+    //           O si: permission === 'granted' pero sin suscripción guardada (reconexión)
+    const isReconnecting = permission === 'granted' && !isSubscribed;
 
     const handleActivate = async () => {
         await subscribe();
-        // Si el usuario concedió el permiso, isSubscribed pasará a true y el
-        // banner desaparecerá. Si lo bloqueó, permission cambia a 'denied'.
     };
 
     return (
         <div
             role="banner"
-            aria-label="Activar notificaciones push"
+            aria-label={isReconnecting ? 'Reconectar notificaciones' : 'Activar notificaciones push'}
             className="fixed bottom-4 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4 sm:px-0"
         >
-            <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-white p-4 shadow-xl dark:border-blue-800 dark:bg-zinc-900">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40">
-                    <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl ${
+                isReconnecting
+                    ? 'border-amber-200 bg-white dark:border-amber-800 dark:bg-zinc-900'
+                    : 'border-blue-200 bg-white dark:border-blue-800 dark:bg-zinc-900'
+            }`}>
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    isReconnecting
+                        ? 'bg-amber-100 dark:bg-amber-900/40'
+                        : 'bg-blue-100 dark:bg-blue-900/40'
+                }`}>
+                    {isReconnecting
+                        ? <RefreshCw className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        : <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    }
                 </div>
 
                 <div className="flex-1 text-sm">
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                        Activa las notificaciones
+                        {isReconnecting
+                            ? 'Reconectar notificaciones'
+                            : 'Activa las notificaciones'
+                        }
                     </p>
                     <p className="mt-0.5 text-zinc-500 dark:text-zinc-400">
-                        Recibe alertas de stock y recepciones aunque el sistema
-                        esté cerrado.
+                        {isReconnecting
+                            ? 'Tu permiso está activo pero este dispositivo no está registrado. Reconecta para recibir alertas.'
+                            : 'Recibe alertas de stock y recepciones aunque el sistema esté cerrado.'
+                        }
                     </p>
                     <div className="mt-3 flex gap-2">
                         <Button
                             size="sm"
                             onClick={handleActivate}
                             disabled={isLoading}
-                            className="h-7 bg-blue-600 px-3 text-xs text-white hover:bg-blue-700"
+                            className={`h-7 px-3 text-xs text-white ${
+                                isReconnecting
+                                    ? 'bg-amber-500 hover:bg-amber-600'
+                                    : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                         >
-                            {isLoading ? 'Activando…' : 'Activar'}
+                            {isLoading
+                                ? 'Conectando…'
+                                : isReconnecting ? 'Reconectar' : 'Activar'
+                            }
                         </Button>
                         <Button
                             size="sm"
@@ -114,6 +147,9 @@ export function PushNotificationToggle() {
         );
     }
 
+    // permission === 'granted' pero sin suscripción → botón de reconexión explícito
+    const label = isSubscribed ? 'Desactivar' : isLoading ? '…' : 'Activar';
+
     return (
         <div className="flex items-center justify-between gap-4">
             <div>
@@ -121,7 +157,9 @@ export function PushNotificationToggle() {
                 <p className="text-xs text-zinc-500">
                     {isSubscribed
                         ? 'Recibes alertas en este dispositivo aunque el sistema esté cerrado.'
-                        : 'Actívalas para recibir alertas de stock, caducidad y recepciones.'}
+                        : permission === 'granted'
+                            ? 'Permiso concedido pero sin suscripción activa en este dispositivo. Haz clic en Activar.'
+                            : 'Actívalas para recibir alertas de stock, caducidad y recepciones.'}
                 </p>
             </div>
             <Button
@@ -131,7 +169,7 @@ export function PushNotificationToggle() {
                 disabled={isLoading}
                 className="shrink-0"
             >
-                {isLoading ? '…' : isSubscribed ? 'Desactivar' : 'Activar'}
+                {label}
             </Button>
         </div>
     );

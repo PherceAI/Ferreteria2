@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -100,6 +101,7 @@ const catalogData = [
 ];
 
 export default function ProductsIndex() {
+    const [query, setQuery] = useState('');
     return (
         <>
             <Head title="Inventario | Productos" />
@@ -156,6 +158,8 @@ export default function ProductsIndex() {
                                 type="search"
                                 placeholder="Buscar código o nombre de producto..."
                                 className="w-full bg-white pl-9 shadow-sm dark:bg-zinc-950"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
                             />
                         </div>
                     </div>
@@ -186,7 +190,14 @@ export default function ProductsIndex() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-zinc-800">
-                                {catalogData.map((item) => {
+                                {catalogData
+                                    .filter(
+                                        (item) =>
+                                            query === '' ||
+                                            item.code.toLowerCase().includes(query.toLowerCase()) ||
+                                            item.name.toLowerCase().includes(query.toLowerCase()),
+                                    )
+                                    .map((item) => {
                                     const isCritical =
                                         item.actualStock < item.minStock;
                                     const isWarning =

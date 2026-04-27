@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     LayoutGrid,
@@ -21,57 +21,84 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
-
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Contabilidad',
-        href: '#',
-        icon: BookOpen,
-        disabled: true,
-    },
-    {
-        title: 'Inventario',
-        href: '#',
-        icon: Package,
-        disabled: false,
-        items: [
-            {
-                title: 'Productos',
-                href: '/inventory/products',
-            },
-            {
-                title: 'Traspasos',
-                href: '#', // TODO: route for transfers
-            },
-        ],
-    },
-    {
-        title: 'Compras',
-        href: '#',
-        icon: ShoppingCart,
-        disabled: true,
-    },
-    {
-        title: 'Logística',
-        href: '#',
-        icon: Truck,
-        disabled: true,
-    },
-    {
-        title: 'Empleados',
-        href: '#',
-        icon: Users,
-        disabled: true,
-    },
-];
+import type { NavItem, SharedData } from '@/types';
 
 export function AppSidebar() {
+    const { auth } = usePage<SharedData>().props;
+
+    const mainNavItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: dashboard(),
+            icon: LayoutGrid,
+        },
+        {
+            title: 'Contabilidad',
+            href: '#',
+            icon: BookOpen,
+            disabled: true,
+        },
+        {
+            title: 'Inventario',
+            href: '#',
+            icon: Package,
+            disabled: false,
+            items: [
+                {
+                    title: 'Productos',
+                    href: '/inventory/products',
+                },
+                {
+                    title: 'Traspasos',
+                    href: '/inventory/transfers',
+                },
+            ],
+        },
+        {
+            title: 'Compras',
+            href: '#',
+            icon: ShoppingCart,
+            disabled: false,
+            items: [
+                {
+                    title: 'Sugerencias',
+                    href: '/compras',
+                },
+                {
+                    title: 'Recepción y Validación',
+                    href: '/compras/recepcion',
+                },
+            ],
+        },
+        {
+            title: 'Logística',
+            href: '#',
+            icon: Truck,
+            disabled: false,
+            items: [
+                {
+                    title: 'Flota de Vehículos',
+                    href: '/logistica',
+                },
+            ],
+        },
+    ];
+
+    if (auth.canViewAllBranches) {
+        mainNavItems.push({
+            title: 'Administración',
+            href: '#',
+            icon: Users,
+            disabled: false,
+            items: [
+                {
+                    title: 'Empleados',
+                    href: '/equipo/empleados',
+                },
+            ],
+        });
+    }
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>

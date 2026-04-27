@@ -1,12 +1,12 @@
 /**
- * Service Worker — Comercial San Francisco
+ * Service Worker — Comercial San Francisco (Panel Pherce)
+ * Version: 2.0.2 — 2026-04-22
  *
  * Responsabilidades:
  *  1. Recibir eventos push y mostrar notificaciones del OS
  *  2. Manejar clicks en notificaciones (abrir/focalizar la app)
  *
- * Este SW no maneja caché ni offline mode — solo push notifications.
- * El alcance (scope) es '/' porque el archivo está en public/sw.js.
+ * Compatibilidad: Android Chrome, iOS Safari (16.4+), Windows Chrome/Edge
  */
 
 'use strict';
@@ -25,18 +25,49 @@ self.addEventListener('push', (event) => {
 
     const title = payload.title ?? 'Comercial San Francisco';
 
+    // La librería webpush-php serializa WebPushMessage plano y deja los campos
+    // custom dentro de `data`. Por eso severity vive en payload.data.severity,
+    // NO en payload.severity. Antes usábamos el camino incorrecto y severity
+    // siempre quedaba 'info' → silent: true → los toasts no aparecían.
+    const severity = payload.data?.severity ?? payload.severity ?? 'info';
+    const url = payload.data?.url ?? '/dashboard';
+
+    // Tag único por notificación — evita que se sobreescriban entre sí
+    // Usamos timestamp para que cada push aparezca por separado en pantalla bloqueada
+    const uniqueTag = `csf-${severity}-${Date.now()}`;
+
     const options = {
         body: payload.body ?? '',
-        icon: payload.icon ?? '/icons/icon-192.png',
+
+        // Ícono principal (logo de la app)
+        icon: '/icons/icon-192.png',
+
+        // Badge: ícono pequeño que aparece en la barra de status de Android
         badge: '/icons/icon-192.png',
-        tag: payload.tag ?? 'csf-notification',
-        data: {
-            url: payload.data?.url ?? '/dashboard',
-        },
-        // Notificaciones críticas requieren interacción (no se auto-cierran)
-        requireInteraction: payload.requireInteraction ?? false,
-        // Vibración en móvil: patrón [ms encendido, ms apagado, ...]
-        vibrate: [200, 100, 200],
+
+        // Tag único = no reemplaza notificaciones anteriores
+        tag: payload.tag ? `${payload.tag}-${Date.now()}` : uniqueTag,
+
+        // renotify: true = vibra aunque el tag se repita (crítico para Chrome escritorio)
+        renotify: true,
+
+        // Los datos URL para cuando el usuario hace clic
+        data: { url },
+
+        // Vibración en móvil Android
+        // Patrón: [vibra, pausa, vibra] en milisegundos
+        vibrate: severity === 'critical' ? [300, 100, 300, 100, 300] : [200, 100, 200],
+
+        // Notificaciones críticas NO se auto-cierran (requieren acción del usuario)
+        requireInteraction: severity === 'critical',
+
+        // silent SIEMPRE false: queremos que suene/vibre en todas las alertas de demo.
+        // Poner silent: true en Chrome escritorio suprime el popup y solo deja el
+        // toast en el centro de notificaciones — el cliente "no ve" nada.
+        silent: false,
+
+        // Timestamp legible en la notificación (Chrome desktop lo muestra)
+        timestamp: Date.now(),
     };
 
     event.waitUntil(
@@ -51,34 +82,33 @@ self.addEventListener('notificationclick', (event) => {
 
     const targetUrl = event.notification.data?.url ?? '/dashboard';
 
+    // Construir URL absoluta con el origin del SW
+    const absoluteUrl = self.location.origin + targetUrl;
+
     event.waitUntil(
         clients
             .matchAll({ type: 'window', includeUncontrolled: true })
             .then((clientList) => {
-                // Si ya hay una ventana abierta con esa URL, la enfocamos
+                // Si ya hay una ventana abierta de la app, la enfocamos y navegamos
                 for (const client of clientList) {
-                    if (client.url.includes(targetUrl) && 'focus' in client) {
-                        return client.focus();
-                    }
-                }
-
-                // Si hay cualquier ventana abierta de la app, la enfocamos y navegamos
-                for (const client of clientList) {
-                    if ('focus' in client && 'navigate' in client) {
+                    if ('focus' in client) {
                         client.focus();
-                        return client.navigate(targetUrl);
+                        if ('navigate' in client) {
+                            return client.navigate(absoluteUrl);
+                        }
+                        return;
                     }
                 }
 
-                // Si no hay ninguna ventana, abrimos una nueva
+                // Si no hay ninguna ventana abierta, abrimos una nueva
                 if (clients.openWindow) {
-                    return clients.openWindow(targetUrl);
+                    return clients.openWindow(absoluteUrl);
                 }
             })
     );
 });
 
-// ─── Instalación y activación: limpiar cachés antiguas si las hubiera ─────────
+// ─── Instalación: activar inmediatamente sin esperar ventanas existentes ──────
 
 self.addEventListener('install', () => {
     self.skipWaiting();

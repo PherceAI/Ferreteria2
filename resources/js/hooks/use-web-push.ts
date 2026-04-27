@@ -1,4 +1,4 @@
-import { router, usePage } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useState } from 'react';
 
 /**
@@ -55,16 +55,55 @@ export function useWebPush(): WebPushState {
     const [isSubscribed, setIsSubscribed] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Verificar si ya hay una suscripción activa en este dispositivo
+    // On mount: check subscription state with a timeout.
+    // If serviceWorker.ready hangs (no SW registered), we still show the banner after 3s.
+    // If PUSH_VERSION changes, force-unsubscribe stale browser subscription.
     useEffect(() => {
         if (!isSupported || !vapidPublicKey) {
             return;
         }
 
-        navigator.serviceWorker.ready
-            .then((registration) => registration.pushManager.getSubscription())
-            .then((subscription) => setIsSubscribed(subscription !== null))
-            .catch(() => setIsSubscribed(false));
+        const PUSH_VERSION = 'v3';
+        const storageKey = 'push_reset_version';
+        let resolved = false;
+
+        const handleReady = async () => {
+            if (resolved) return;
+            resolved = true;
+
+            try {
+                // Ensure SW is registered first
+                await navigator.serviceWorker.register('/sw.js');
+                const registration = await navigator.serviceWorker.ready;
+                const subscription = await registration.pushManager.getSubscription();
+                const currentVersion = localStorage.getItem(storageKey);
+
+                if (subscription && currentVersion !== PUSH_VERSION) {
+                    await subscription.unsubscribe();
+                    localStorage.setItem(storageKey, PUSH_VERSION);
+                    setIsSubscribed(false);
+                } else if (!subscription) {
+                    localStorage.setItem(storageKey, PUSH_VERSION);
+                    setIsSubscribed(false);
+                } else {
+                    setIsSubscribed(true);
+                }
+            } catch {
+                setIsSubscribed(false);
+            }
+        };
+
+        // Timeout: if SW.ready hasn't resolved in 3s, show the banner anyway
+        const timeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                setIsSubscribed(false);
+            }
+        }, 3000);
+
+        handleReady();
+
+        return () => clearTimeout(timeout);
     }, [isSupported, vapidPublicKey]);
 
     const subscribe = useCallback(async (): Promise<boolean> => {
@@ -97,25 +136,35 @@ export function useWebPush(): WebPushState {
                 PushManager as { supportedContentEncodings?: string[] }
             ).supportedContentEncodings ?? ['aesgcm'])[0];
 
-            // 4. Guardar suscripción en el servidor
-            await new Promise<void>((resolve, reject) => {
-                router.post(
-                    '/push/subscriptions',
-                    {
-                        endpoint: subscription.endpoint,
-                        key: p256dhKey ? arrayBufferToBase64(p256dhKey) : null,
-                        token: authKey ? arrayBufferToBase64(authKey) : null,
-                        contentEncoding,
-                    },
-                    {
-                        preserveState: true,
-                        preserveScroll: true,
-                        onSuccess: () => resolve(),
-                        onError: () =>
-                            reject(new Error('Failed to store subscription')),
-                    },
-                );
+            // 4. Guardar suscripción en el servidor via fetch (no Inertia router)
+            // El router de Inertia espera una respuesta Inertia, no JSON plano.
+            const csrfToken = document.cookie
+                .split('; ')
+                .find((c) => c.startsWith('XSRF-TOKEN='))
+                ?.split('=')
+                .slice(1)
+                .join('=');
+
+            const storeRes = await fetch('/push/subscriptions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': csrfToken
+                        ? decodeURIComponent(csrfToken)
+                        : '',
+                },
+                body: JSON.stringify({
+                    endpoint: subscription.endpoint,
+                    key: p256dhKey ? arrayBufferToBase64(p256dhKey) : null,
+                    token: authKey ? arrayBufferToBase64(authKey) : null,
+                    contentEncoding,
+                }),
             });
+
+            if (!storeRes.ok) {
+                throw new Error('Failed to store subscription');
+            }
 
             setIsSubscribed(true);
 
@@ -145,14 +194,24 @@ export function useWebPush(): WebPushState {
                 return;
             }
 
-            // 1. Eliminar en el servidor
-            await new Promise<void>((resolve) => {
-                router.delete('/push/subscriptions', {
-                    data: { endpoint: subscription.endpoint },
-                    preserveState: true,
-                    preserveScroll: true,
-                    onFinish: () => resolve(),
-                });
+            // 1. Eliminar en el servidor via fetch (no Inertia router)
+            const csrfToken = document.cookie
+                .split('; ')
+                .find((c) => c.startsWith('XSRF-TOKEN='))
+                ?.split('=')
+                .slice(1)
+                .join('=');
+
+            await fetch('/push/subscriptions', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-XSRF-TOKEN': csrfToken
+                        ? decodeURIComponent(csrfToken)
+                        : '',
+                },
+                body: JSON.stringify({ endpoint: subscription.endpoint }),
             });
 
             // 2. Desuscribir en el navegador

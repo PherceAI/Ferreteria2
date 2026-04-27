@@ -1,5 +1,7 @@
 <?php
 
+use App\Domain\Purchasing\Jobs\FetchInvoiceEmailsJob;
+use App\Models\Branch;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -14,6 +16,18 @@ Schedule::everyFiveMinutes()
     ->group(function (): void {
         Schedule::command('horizon:snapshot');
     });
+
+// Revisar Gmail cada 15 minutos por sucursal activa buscando facturas con adjunto XML
+Schedule::call(function (): void {
+    Branch::where('is_active', true)->each(function (Branch $branch): void {
+        FetchInvoiceEmailsJob::dispatch($branch->id);
+    });
+})
+    ->name('fetch-invoice-emails')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping()
+    ->timezone('America/Guayaquil');
 
 Schedule::daily()
     ->onOneServer()
