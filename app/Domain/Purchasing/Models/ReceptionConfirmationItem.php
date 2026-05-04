@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Purchasing\Models;
 
+use App\Shared\Traits\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class ReceptionConfirmationItem extends Model
 {
+    use Auditable;
+
     protected $table = 'pherce_intel.reception_confirmation_items';
 
     protected $fillable = [

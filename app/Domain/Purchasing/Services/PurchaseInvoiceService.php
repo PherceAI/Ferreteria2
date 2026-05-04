@@ -7,7 +7,6 @@ namespace App\Domain\Purchasing\Services;
 use App\Domain\Purchasing\DTOs\PurchaseInvoiceData;
 use App\Domain\Purchasing\Events\InvoiceEmailReceived;
 use App\Domain\Purchasing\Models\PurchaseInvoice;
-use App\Domain\Purchasing\Models\PurchaseInvoiceItem;
 use App\Domain\Purchasing\Models\ReceptionConfirmation;
 use App\Domain\Purchasing\Models\Supplier;
 use Illuminate\Support\Facades\Context;
@@ -48,17 +47,14 @@ final class PurchaseInvoiceService
             ]);
 
             $rows = array_map(fn ($item) => [
-                'invoice_id' => $invoice->id,
                 'code' => $item->code,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unitPrice,
                 'subtotal' => $item->subtotal,
-                'created_at' => now(),
-                'updated_at' => now(),
             ], $data->items);
 
-            PurchaseInvoiceItem::insert($rows);
+            $invoice->items()->createMany($rows);
 
             ReceptionConfirmation::create([
                 'branch_id' => $branchId,

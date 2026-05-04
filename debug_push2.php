@@ -2,12 +2,13 @@
 
 require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
 use App\Models\User;
-use Minishlink\WebPush\WebPush;
+use Illuminate\Contracts\Console\Kernel;
 use Minishlink\WebPush\Subscription;
+use Minishlink\WebPush\WebPush;
 
 $auth = [
     'VAPID' => [

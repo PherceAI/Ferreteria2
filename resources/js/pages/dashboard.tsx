@@ -1,4 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
@@ -11,6 +12,7 @@ import {
     ShieldAlert,
     ShoppingCart,
 } from 'lucide-react';
+import { useState } from 'react';
 import {
     Bar,
     BarChart,
@@ -25,10 +27,8 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Link } from '@inertiajs/react';
-import { useState } from 'react';
-import { dashboard } from '@/routes';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { dashboard } from '@/routes';
 import type { Auth } from '@/types';
 
 function greeting(): string {
@@ -92,7 +92,7 @@ export default function Dashboard() {
     const { auth } = usePage<{ auth: Auth }>().props;
     const firstName = auth.user.name.split(' ')[0];
     const branchName = auth.activeBranch?.name ?? 'Sin sucursal';
-    
+
     const [showSellers, setShowSellers] = useState(false);
     const [showCxC, setShowCxC] = useState(false);
 
@@ -121,8 +121,8 @@ export default function Dashboard() {
 
                 {/* 1. CAPA: EL CORAZÓN (KPIs de Supervivencia) */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Card 
-                        className="border border-neutral-200 shadow-none dark:border-zinc-800 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800/50"
+                    <Card
+                        className="cursor-pointer border border-neutral-200 shadow-none transition-colors hover:bg-neutral-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                         onClick={() => setShowSellers(!showSellers)}
                     >
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -140,10 +140,31 @@ export default function Dashboard() {
                                 <span>+12.5% vs ayer</span>
                             </div>
                             {showSellers && (
-                                <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-zinc-800 flex flex-col gap-2">
-                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Ana Castillo</span><span className="font-semibold">$2,150.00</span></div>
-                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Pedro Rojas</span><span className="font-semibold">$1,850.50</span></div>
-                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Luis Sánchez</span><span className="font-semibold">$850.00</span></div>
+                                <div className="mt-4 flex flex-col gap-2 border-t border-neutral-100 pt-3 dark:border-zinc-800">
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-neutral-500">
+                                            Ana Castillo
+                                        </span>
+                                        <span className="font-semibold">
+                                            $2,150.00
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-neutral-500">
+                                            Pedro Rojas
+                                        </span>
+                                        <span className="font-semibold">
+                                            $1,850.50
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-neutral-500">
+                                            Luis Sánchez
+                                        </span>
+                                        <span className="font-semibold">
+                                            $850.00
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
@@ -168,8 +189,8 @@ export default function Dashboard() {
                         </CardContent>
                     </Card>
 
-                    <Card 
-                        className="border border-neutral-200 shadow-none dark:border-zinc-800 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800/50"
+                    <Card
+                        className="cursor-pointer border border-neutral-200 shadow-none transition-colors hover:bg-neutral-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
                         onClick={() => setShowCxC(!showCxC)}
                     >
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -189,17 +210,38 @@ export default function Dashboard() {
                                 </span>
                             </div>
                             {showCxC && (
-                                <div className="mt-4 pt-3 border-t border-neutral-100 dark:border-zinc-800 flex flex-col gap-2">
-                                    <div className="flex justify-between text-xs"><span className="text-red-500 font-medium">Constructora Silva</span><span className="font-semibold text-red-600">$5,420.00</span></div>
-                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Ing. Marco Villacreses</span><span className="font-semibold">$2,100.00</span></div>
-                                    <div className="flex justify-between text-xs"><span className="text-neutral-500">Ferretería El Maestro</span><span className="font-semibold">$1,850.00</span></div>
+                                <div className="mt-4 flex flex-col gap-2 border-t border-neutral-100 pt-3 dark:border-zinc-800">
+                                    <div className="flex justify-between text-xs">
+                                        <span className="font-medium text-red-500">
+                                            Constructora Silva
+                                        </span>
+                                        <span className="font-semibold text-red-600">
+                                            $5,420.00
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-neutral-500">
+                                            Ing. Marco Villacreses
+                                        </span>
+                                        <span className="font-semibold">
+                                            $2,100.00
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-xs">
+                                        <span className="text-neutral-500">
+                                            Ferretería El Maestro
+                                        </span>
+                                        <span className="font-semibold">
+                                            $1,850.00
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
                     </Card>
 
                     <Link href="/inventory/products?filter=low_stock">
-                        <Card className="border border-neutral-200 shadow-none dark:border-zinc-800 cursor-pointer transition-colors hover:bg-neutral-50 dark:hover:bg-zinc-800/50">
+                        <Card className="cursor-pointer border border-neutral-200 shadow-none transition-colors hover:bg-neutral-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
                                     Ruptura Stock (Artículos A)
@@ -392,25 +434,28 @@ export default function Dashboard() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-col gap-3">
-                                <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800 cursor-pointer hover:bg-red-50/50 transition-colors">
-                                    <div className="mt-0.5 relative h-2 w-2">
-                                        <div className="absolute h-2 w-2 rounded-full bg-red-500 animate-ping opacity-75"></div>
+                                <div className="flex cursor-pointer items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 transition-colors hover:bg-red-50/50 dark:bg-zinc-900 dark:ring-zinc-800">
+                                    <div className="relative mt-0.5 h-2 w-2">
+                                        <div className="absolute h-2 w-2 animate-ping rounded-full bg-red-500 opacity-75"></div>
                                         <div className="relative h-2 w-2 rounded-full bg-red-500"></div>
                                     </div>
                                     <div className="text-sm text-neutral-700 dark:text-zinc-300">
                                         <span className="font-semibold text-neutral-900 dark:text-zinc-100">
                                             Discrepancia física:{' '}
                                         </span>
-                                        Factura #001-204-000567. Los tornillos físicos no coinciden con los de la factura electrónica.
+                                        Factura #001-204-000567. Los tornillos
+                                        físicos no coinciden con los de la
+                                        factura electrónica.
                                     </div>
                                 </div>
-                                <div className="flex items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 dark:bg-zinc-900 dark:ring-zinc-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
+                                <div className="flex cursor-pointer items-start gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-neutral-200 transition-colors hover:bg-amber-50/50 dark:bg-zinc-900 dark:ring-zinc-800">
                                     <div className="mt-0.5 h-2 w-2 rounded-full bg-amber-500"></div>
                                     <div className="text-sm text-neutral-700 dark:text-zinc-300">
                                         <span className="font-semibold text-neutral-900 dark:text-zinc-100">
                                             Cuentas:{' '}
                                         </span>
-                                        Cemento Chimborazo está a punto de agotarse en sucursal principal.
+                                        Cemento Chimborazo está a punto de
+                                        agotarse en sucursal principal.
                                     </div>
                                 </div>
                             </div>

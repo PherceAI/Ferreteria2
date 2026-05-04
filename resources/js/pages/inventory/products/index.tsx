@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -7,6 +6,7 @@ import {
     TrendingUp,
     Truck,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -102,6 +102,7 @@ const catalogData = [
 
 export default function ProductsIndex() {
     const [query, setQuery] = useState('');
+
     return (
         <>
             <Head title="Inventario | Productos" />
@@ -194,65 +195,71 @@ export default function ProductsIndex() {
                                     .filter(
                                         (item) =>
                                             query === '' ||
-                                            item.code.toLowerCase().includes(query.toLowerCase()) ||
-                                            item.name.toLowerCase().includes(query.toLowerCase()),
+                                            item.code
+                                                .toLowerCase()
+                                                .includes(
+                                                    query.toLowerCase(),
+                                                ) ||
+                                            item.name
+                                                .toLowerCase()
+                                                .includes(query.toLowerCase()),
                                     )
                                     .map((item) => {
-                                    const isCritical =
-                                        item.actualStock < item.minStock;
-                                    const isWarning =
-                                        item.actualStock >= item.minStock &&
-                                        item.actualStock <=
-                                            item.minStock * 1.25;
+                                        const isCritical =
+                                            item.actualStock < item.minStock;
+                                        const isWarning =
+                                            item.actualStock >= item.minStock &&
+                                            item.actualStock <=
+                                                item.minStock * 1.25;
 
-                                    let stockColor =
-                                        'text-green-600 dark:text-green-500';
-                                    let stockBg =
-                                        'bg-green-50 dark:bg-green-900/20';
+                                        let stockColor =
+                                            'text-green-600 dark:text-green-500';
+                                        let stockBg =
+                                            'bg-green-50 dark:bg-green-900/20';
 
-                                    if (isCritical) {
-                                        stockColor =
-                                            'text-red-600 dark:text-red-500';
-                                        stockBg =
-                                            'bg-red-50 dark:bg-red-900/20';
-                                    } else if (isWarning) {
-                                        stockColor =
-                                            'text-amber-600 dark:text-amber-500';
-                                        stockBg =
-                                            'bg-amber-50 dark:bg-amber-900/20';
-                                    }
+                                        if (isCritical) {
+                                            stockColor =
+                                                'text-red-600 dark:text-red-500';
+                                            stockBg =
+                                                'bg-red-50 dark:bg-red-900/20';
+                                        } else if (isWarning) {
+                                            stockColor =
+                                                'text-amber-600 dark:text-amber-500';
+                                            stockBg =
+                                                'bg-amber-50 dark:bg-amber-900/20';
+                                        }
 
-                                    return (
-                                        <tr
-                                            key={item.code}
-                                            className="transition-colors hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50"
-                                        >
-                                            <td className="px-4 py-3 font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
-                                                {item.code}
-                                            </td>
-                                            <td className="px-4 py-3 text-neutral-700 dark:text-zinc-300">
-                                                {item.name}
-                                            </td>
-                                            <td className="px-4 py-3 text-center text-neutral-500">
-                                                ${item.cost.toFixed(2)}
-                                            </td>
-                                            <td className="px-4 py-3 text-center font-semibold text-neutral-900 dark:text-zinc-100">
-                                                ${item.price.toFixed(2)}
-                                            </td>
-                                            <td className="px-4 py-3 text-center text-neutral-500">
-                                                {item.minStock}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={`${stockBg} ${stockColor} shadow-none hover:bg-transparent`}
-                                                >
-                                                    {item.actualStock}
-                                                </Badge>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                        return (
+                                            <tr
+                                                key={item.code}
+                                                className="transition-colors hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50"
+                                            >
+                                                <td className="px-4 py-3 font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
+                                                    {item.code}
+                                                </td>
+                                                <td className="px-4 py-3 text-neutral-700 dark:text-zinc-300">
+                                                    {item.name}
+                                                </td>
+                                                <td className="px-4 py-3 text-center text-neutral-500">
+                                                    ${item.cost.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-center font-semibold text-neutral-900 dark:text-zinc-100">
+                                                    ${item.price.toFixed(2)}
+                                                </td>
+                                                <td className="px-4 py-3 text-center text-neutral-500">
+                                                    {item.minStock}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className={`${stockBg} ${stockColor} shadow-none hover:bg-transparent`}
+                                                    >
+                                                        {item.actualStock}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                             </tbody>
                         </table>
                     </div>

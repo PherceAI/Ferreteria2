@@ -24,9 +24,6 @@ use Illuminate\Support\Facades\Log;
  */
 final class FleetController extends Controller
 {
-    private const API_URL = 'https://plataforma.ubikarecuador.com/api/get_devices';
-    private const API_HASH = '$2y$10$MBkt/IqWb3sH5hvhj6ZIZ..rmtaCKMFt5736sU2edhTzJWxkmQwKW';
-
     /**
      * Obtiene el estado en tiempo real de todos los vehículos de la flota
      * haciendo proxy a la API de Ubika Ecuador.
@@ -35,10 +32,22 @@ final class FleetController extends Controller
      */
     public function refresh(Request $request): JsonResponse
     {
+        $apiUrl = config('services.ubika.devices_url');
+        $apiHash = config('services.ubika.user_api_hash');
+
+        if (! is_string($apiUrl) || $apiUrl === '' || ! is_string($apiHash) || $apiHash === '') {
+            Log::warning('Fleet API credentials are not configured.');
+
+            return response()->json([
+                'success' => false,
+                'message' => 'La integración GPS no está configurada. Verifique las credenciales del servicio.',
+            ], 503);
+        }
+
         try {
-            $response = Http::timeout(15)->get(self::API_URL, [
-                'user_api_hash' => self::API_HASH,
-                'lang'          => 'es',
+            $response = Http::timeout(15)->get($apiUrl, [
+                'user_api_hash' => $apiHash,
+                'lang' => 'es',
             ]);
 
             if (! $response->successful()) {
@@ -58,8 +67,8 @@ final class FleetController extends Controller
                 ->all();
 
             return response()->json([
-                'success'      => true,
-                'vehicles'     => $vehicles,
+                'success' => true,
+                'vehicles' => $vehicles,
                 'refreshed_at' => now()->setTimezone('America/Guayaquil')->format('d/m/Y H:i:s'),
             ]);
         } catch (\Throwable $e) {
@@ -84,7 +93,7 @@ final class FleetController extends Controller
 
         if ($users->isEmpty()) {
             return response()->json([
-                'sent'    => false,
+                'sent' => false,
                 'message' => 'No hay dispositivos con notificaciones activas. Actívalas primero desde el banner.',
             ], 422);
         }
@@ -118,9 +127,9 @@ final class FleetController extends Controller
         }
 
         return response()->json([
-            'sent'          => true,
+            'sent' => true,
             'notifications' => $sent,
-            'recipients'    => $users->count(),
+            'recipients' => $users->count(),
         ]);
     }
 
@@ -128,7 +137,7 @@ final class FleetController extends Controller
      * Transforma un vehículo del formato raw de la API al formato limpio
      * que consume el frontend. Solo expone los campos necesarios.
      *
-     * @param array<string,mixed> $v
+     * @param  array<string,mixed>  $v
      * @return array<string,mixed>
      */
     private function transformVehicle(array $v): array
@@ -139,31 +148,31 @@ final class FleetController extends Controller
             ->all();
 
         $batteryVehicle = $sensors['power']['value'] ?? '—';
-        $ignition       = $sensors['ignition']['value'] ?? 'OFF';
-        $satellites     = $sensors['sat']['value'] ?? '0';
+        $ignition = $sensors['ignition']['value'] ?? 'OFF';
+        $satellites = $sensors['sat']['value'] ?? '0';
 
         // Determinar estado semáforo
         $status = match (true) {
             ($v['online'] === 'online' || $v['online'] === 'moving') && (float) $v['speed'] > 0 => 'moving',
-            ($v['online'] === 'engine') || ($v['engine_status'] ?? false) === true              => 'idle',
-            $v['online'] === 'offline'                                                          => 'offline',
-            default                                                                             => 'stopped',
+            ($v['online'] === 'engine') || ($v['engine_status'] ?? false) === true => 'idle',
+            $v['online'] === 'offline' => 'offline',
+            default => 'stopped',
         };
 
         return [
-            'id'               => $v['id'],
-            'name'             => $v['name'],
-            'status'           => $status,   // moving | idle | stopped | offline
-            'speed'            => (float) ($v['speed'] ?? 0),
-            'stop_duration'    => $v['stop_duration'] ?? '—',
+            'id' => $v['id'],
+            'name' => $v['name'],
+            'status' => $status,   // moving | idle | stopped | offline
+            'speed' => (float) ($v['speed'] ?? 0),
+            'stop_duration' => $v['stop_duration'] ?? '—',
             'stop_duration_sec' => (int) ($v['stop_duration_sec'] ?? 0),
-            'engine_on'        => $ignition === 'ON',
-            'battery_vehicle'  => $batteryVehicle,
-            'satellites'       => (int) $satellites,
-            'lat'              => (float) ($v['lat'] ?? 0),
-            'lng'              => (float) ($v['lng'] ?? 0),
+            'engine_on' => $ignition === 'ON',
+            'battery_vehicle' => $batteryVehicle,
+            'satellites' => (int) $satellites,
+            'lat' => (float) ($v['lat'] ?? 0),
+            'lng' => (float) ($v['lng'] ?? 0),
             'total_distance_km' => round((float) ($v['total_distance'] ?? 0), 2),
-            'expiration_date'  => isset($v['device_data']['expiration_date'])
+            'expiration_date' => isset($v['device_data']['expiration_date'])
                 ? substr($v['device_data']['expiration_date'], 0, 10)
                 : null,
         ];

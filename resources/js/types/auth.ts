@@ -26,6 +26,14 @@ export type Auth = {
     canViewAllBranches: boolean;
 };
 
+export type SharedData = {
+    name: string;
+    auth: Auth;
+    sidebarOpen: boolean;
+    vapidPublicKey: VapidPublicKey;
+    [key: string]: unknown;
+};
+
 export type TwoFactorSetupData = {
     svg: string;
     url: string;

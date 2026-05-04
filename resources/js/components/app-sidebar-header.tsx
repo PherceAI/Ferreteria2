@@ -1,16 +1,7 @@
-import { useState } from 'react';
 import { Bell, MapPin, Send } from 'lucide-react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { SidebarTrigger } from '@/components/ui/sidebar';
-import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from '@/components/ui/sheet';
 import {
     Select,
     SelectContent,
@@ -18,7 +9,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { MOCK_ALERTS, MOCK_BRANCHES } from '@/data/mock';
+import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -31,7 +31,7 @@ export function AppSidebarHeader({
 
     const markAsRead = (id: number) => {
         setAlerts((prev) =>
-            prev.map((a) => (a.id === id ? { ...a, isRead: true } : a))
+            prev.map((a) => (a.id === id ? { ...a, isRead: true } : a)),
         );
     };
 
@@ -49,13 +49,20 @@ export function AppSidebarHeader({
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    'X-XSRF-TOKEN': csrfToken ? decodeURIComponent(csrfToken) : '',
+                    'X-XSRF-TOKEN': csrfToken
+                        ? decodeURIComponent(csrfToken)
+                        : '',
                 },
             });
 
-            if (!res.ok) throw new Error('Error al enviar test');
-            toast.success('✅ 3 notificaciones enviadas a todos los dispositivos activos.');
-        } catch (error) {
+            if (!res.ok) {
+                throw new Error('Error al enviar test');
+            }
+
+            toast.success(
+                '✅ 3 notificaciones enviadas a todos los dispositivos activos.',
+            );
+        } catch {
             toast.error('No se pudo iniciar la demo de notificaciones');
         }
     };
@@ -97,33 +104,33 @@ export function AppSidebarHeader({
                             )}
                         </button>
                     </SheetTrigger>
-                    <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-white dark:bg-zinc-900 border-l border-neutral-200 dark:border-zinc-800 shadow-none p-6">
+                    <SheetContent className="w-full overflow-y-auto border-l border-neutral-200 bg-white p-6 shadow-none sm:max-w-md dark:border-zinc-800 dark:bg-zinc-900">
                         <SheetHeader className="mb-6 flex flex-row items-center justify-between">
                             <SheetTitle className="text-lg font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                                 Centro de Alertas
                             </SheetTitle>
-                            <button 
+                            <button
                                 onClick={handleTestNotification}
-                                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
+                                className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30"
                             >
                                 <Send className="h-3.5 w-3.5" />
                                 Probar Notificación
                             </button>
                         </SheetHeader>
                         <div className="flex flex-col gap-0">
-                            <div className="text-xs font-medium uppercase tracking-[-0.02em] text-neutral-500 dark:text-zinc-400 mb-2 px-2">
+                            <div className="mb-2 px-2 text-xs font-medium tracking-[-0.02em] text-neutral-500 uppercase dark:text-zinc-400">
                                 Hoy — 21 de Abril, 2026
                             </div>
                             {alerts.map((alert) => (
                                 <div
                                     key={alert.id}
-                                    className={`group relative flex flex-col gap-2 p-4 border-b border-neutral-200 dark:border-zinc-800 transition-colors last:border-0 ${
+                                    className={`group relative flex flex-col gap-2 border-b border-neutral-200 p-4 transition-colors last:border-0 dark:border-zinc-800 ${
                                         alert.isRead
                                             ? 'opacity-60'
                                             : 'bg-white hover:bg-neutral-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/50'
                                     }`}
                                 >
-                                    <div className="flex justify-between items-start gap-4">
+                                    <div className="flex items-start justify-between gap-4">
                                         <div className="flex items-center gap-2">
                                             {/* Status Dot Minimalista */}
                                             {alert.type === 'critical' && (
@@ -142,26 +149,28 @@ export function AppSidebarHeader({
                                                 {alert.title}
                                             </h4>
                                         </div>
-                                        <div className="flex flex-col items-end gap-1 shrink-0">
-                                            <span className="text-xs tracking-[-0.02em] text-neutral-400 dark:text-zinc-500 whitespace-nowrap">
+                                        <div className="flex shrink-0 flex-col items-end gap-1">
+                                            <span className="text-xs tracking-[-0.02em] whitespace-nowrap text-neutral-400 dark:text-zinc-500">
                                                 {alert.timestamp}
                                             </span>
                                             {!alert.isRead && (
-                                                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                                <span className="h-2 w-2 animate-pulse rounded-full bg-blue-500"></span>
                                             )}
                                         </div>
                                     </div>
-                                    <p className="text-sm tracking-[-0.02em] text-neutral-500 dark:text-zinc-400 leading-relaxed pr-6">
+                                    <p className="pr-6 text-sm leading-relaxed tracking-[-0.02em] text-neutral-500 dark:text-zinc-400">
                                         {alert.message}
                                     </p>
                                     <div className="mt-1 flex items-center justify-between">
-                                        <button className="text-sm font-medium tracking-[-0.02em] text-neutral-900 hover:text-neutral-600 transition-colors dark:text-zinc-50 dark:hover:text-zinc-300">
+                                        <button className="text-sm font-medium tracking-[-0.02em] text-neutral-900 transition-colors hover:text-neutral-600 dark:text-zinc-50 dark:hover:text-zinc-300">
                                             {alert.actionText} →
                                         </button>
                                         {!alert.isRead && (
                                             <button
-                                                onClick={() => markAsRead(alert.id)}
-                                                className="opacity-0 group-hover:opacity-100 text-xs font-medium tracking-[-0.02em] text-neutral-400 hover:text-neutral-900 transition-all dark:text-zinc-500 dark:hover:text-zinc-300"
+                                                onClick={() =>
+                                                    markAsRead(alert.id)
+                                                }
+                                                className="text-xs font-medium tracking-[-0.02em] text-neutral-400 opacity-0 transition-all group-hover:opacity-100 hover:text-neutral-900 dark:text-zinc-500 dark:hover:text-zinc-300"
                                             >
                                                 Marcar como leída
                                             </button>

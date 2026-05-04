@@ -30,7 +30,9 @@ export function NavMain({
     const { isMobile, setOpenMobile } = useSidebar();
 
     const handleNavClick = () => {
-        if (isMobile) setOpenMobile(false);
+        if (isMobile) {
+            setOpenMobile(false);
+        }
     };
 
     return (
@@ -90,7 +92,9 @@ export function NavMain({
                                                         <Link
                                                             href={subItem.href}
                                                             prefetch
-                                                            onClick={handleNavClick}
+                                                            onClick={
+                                                                handleNavClick
+                                                            }
                                                         >
                                                             <span>
                                                                 {subItem.title}
@@ -113,7 +117,11 @@ export function NavMain({
                                 isActive={isCurrentUrl(item.href)}
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch onClick={handleNavClick}>
+                                <Link
+                                    href={item.href}
+                                    prefetch
+                                    onClick={handleNavClick}
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>

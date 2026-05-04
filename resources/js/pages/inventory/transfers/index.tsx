@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import {
     AlertTriangle,
@@ -8,9 +7,10 @@ import {
     Search,
     Truck,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -19,8 +19,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { MOCK_TRANSFERS } from '@/data/mock';
 
 export default function TransfersIndex() {
@@ -42,21 +42,27 @@ export default function TransfersIndex() {
     };
 
     const confirmReceipt = () => {
-        if (!selectedTransfer) return;
+        if (!selectedTransfer) {
+            return;
+        }
+
         setTransfers((prev) =>
             prev.map((t) =>
-                t.id === selectedTransfer.id ? { ...t, status: 'Recibido' } : t
-            )
+                t.id === selectedTransfer.id ? { ...t, status: 'Recibido' } : t,
+            ),
         );
         setIsConfirmModalOpen(false);
     };
 
     const resolveIncident = () => {
-        if (!selectedTransfer) return;
+        if (!selectedTransfer) {
+            return;
+        }
+
         setTransfers((prev) =>
             prev.map((t) =>
-                t.id === selectedTransfer.id ? { ...t, status: 'Recibido' } : t
-            )
+                t.id === selectedTransfer.id ? { ...t, status: 'Recibido' } : t,
+            ),
         );
         setIsIncidentModalOpen(false);
     };
@@ -86,11 +92,19 @@ export default function TransfersIndex() {
                 <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
                     <Info className="mt-0.5 h-5 w-5 text-blue-600" />
                     <div className="flex flex-col gap-1">
-                        <span className="text-sm font-semibold text-blue-900 dark:text-blue-400 tracking-tight">
+                        <span className="text-sm font-semibold tracking-tight text-blue-900 dark:text-blue-400">
                             Flujo de Validación Físico (Pre-TINI)
                         </span>
-                        <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
-                            Para evitar descuadres, todo traspaso inicia por esta vía. Al generarlo, <strong>se enviará una notificación a la sucursal de destino</strong>. Solo cuando ellos validen físicamente la recepción de la mercancía, el movimiento debe ser ingresado al sistema TINI.
+                        <p className="text-sm leading-relaxed text-blue-800 dark:text-blue-300">
+                            Para evitar descuadres, todo traspaso inicia por
+                            esta vía. Al generarlo,{' '}
+                            <strong>
+                                se enviará una notificación a la sucursal de
+                                destino
+                            </strong>
+                            . Solo cuando ellos validen físicamente la recepción
+                            de la mercancía, el movimiento debe ser ingresado al
+                            sistema TINI.
                         </p>
                     </div>
                 </div>
@@ -156,7 +170,7 @@ export default function TransfersIndex() {
                 <div className="flex flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                     <div className="flex items-center justify-between">
                         <div className="relative w-72">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-neutral-500" />
+                            <Search className="absolute top-2.5 left-2.5 h-4 w-4 text-neutral-500" />
                             <Input
                                 type="text"
                                 placeholder="Buscar traspaso..."
@@ -191,7 +205,7 @@ export default function TransfersIndex() {
                                     <th className="px-4 py-3 font-medium">
                                         Fecha
                                     </th>
-                                    <th className="px-4 py-3 font-medium text-right">
+                                    <th className="px-4 py-3 text-right font-medium">
                                         Acciones
                                     </th>
                                 </tr>
@@ -230,8 +244,7 @@ export default function TransfersIndex() {
                                                     En Tránsito
                                                 </span>
                                             )}
-                                            {t.status ===
-                                                'Pendiente Envío' && (
+                                            {t.status === 'Pendiente Envío' && (
                                                 <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-600 dark:bg-zinc-800 dark:text-zinc-400">
                                                     <Clock className="h-3 w-3" />
                                                     Pendiente Envío
@@ -357,10 +370,10 @@ export default function TransfersIndex() {
                                 <textarea
                                     id="obs"
                                     placeholder="Novedades opcionales..."
-                                    className="col-span-3 flex min-h-[80px] w-full rounded-md border border-neutral-200 bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-neutral-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
+                                    className="col-span-3 flex min-h-[80px] w-full rounded-md border border-neutral-200 bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-neutral-500 focus-visible:ring-1 focus-visible:ring-neutral-950 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:placeholder:text-zinc-400 dark:focus-visible:ring-zinc-300"
                                 />
                             </div>
-                            <div className="flex items-center space-x-2 pt-2 ml-4">
+                            <div className="ml-4 flex items-center space-x-2 pt-2">
                                 <Checkbox
                                     id="exact"
                                     checked={isExactAmount}
@@ -370,7 +383,7 @@ export default function TransfersIndex() {
                                 />
                                 <label
                                     htmlFor="exact"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                    className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                 >
                                     La cantidad recibida coincide con lo enviado
                                 </label>
@@ -392,7 +405,9 @@ export default function TransfersIndex() {
                                 </Button>
                             ) : (
                                 <Button
-                                    onClick={() => alert('Diferencia reportada')}
+                                    onClick={() =>
+                                        alert('Diferencia reportada')
+                                    }
                                     className="bg-amber-500 hover:bg-amber-600"
                                 >
                                     Reportar Diferencia

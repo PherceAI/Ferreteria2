@@ -26,10 +26,14 @@ export function PushNotificationSetup() {
     const [dismissed, setDismissed] = useState(false);
 
     // No mostrar si: no soportado, ya suscrito, o el usuario cerró el banner
-    if (!isSupported || isSubscribed || dismissed) return null;
+    if (!isSupported || isSubscribed || dismissed) {
+        return null;
+    }
 
     // No mostrar si el permiso está bloqueado (el usuario lo rechazó explícitamente)
-    if (permission === 'denied') return null;
+    if (permission === 'denied') {
+        return null;
+    }
 
     // Sí mostrar si: permission === 'default' (nunca preguntado)
     //           O si: permission === 'granted' pero sin suscripción guardada (reconexión)
@@ -42,37 +46,44 @@ export function PushNotificationSetup() {
     return (
         <div
             role="banner"
-            aria-label={isReconnecting ? 'Reconectar notificaciones' : 'Activar notificaciones push'}
+            aria-label={
+                isReconnecting
+                    ? 'Reconectar notificaciones'
+                    : 'Activar notificaciones push'
+            }
             className="fixed bottom-4 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4 sm:px-0"
         >
-            <div className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl ${
-                isReconnecting
-                    ? 'border-amber-200 bg-white dark:border-amber-800 dark:bg-zinc-900'
-                    : 'border-blue-200 bg-white dark:border-blue-800 dark:bg-zinc-900'
-            }`}>
-                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            <div
+                className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl ${
                     isReconnecting
-                        ? 'bg-amber-100 dark:bg-amber-900/40'
-                        : 'bg-blue-100 dark:bg-blue-900/40'
-                }`}>
-                    {isReconnecting
-                        ? <RefreshCw className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                        : <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    }
+                        ? 'border-amber-200 bg-white dark:border-amber-800 dark:bg-zinc-900'
+                        : 'border-blue-200 bg-white dark:border-blue-800 dark:bg-zinc-900'
+                }`}
+            >
+                <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                        isReconnecting
+                            ? 'bg-amber-100 dark:bg-amber-900/40'
+                            : 'bg-blue-100 dark:bg-blue-900/40'
+                    }`}
+                >
+                    {isReconnecting ? (
+                        <RefreshCw className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    ) : (
+                        <Bell className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    )}
                 </div>
 
                 <div className="flex-1 text-sm">
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">
                         {isReconnecting
                             ? 'Reconectar notificaciones'
-                            : 'Activa las notificaciones'
-                        }
+                            : 'Activa las notificaciones'}
                     </p>
                     <p className="mt-0.5 text-zinc-500 dark:text-zinc-400">
                         {isReconnecting
                             ? 'Tu permiso está activo pero este dispositivo no está registrado. Reconecta para recibir alertas.'
-                            : 'Recibe alertas de stock y recepciones aunque el sistema esté cerrado.'
-                        }
+                            : 'Recibe alertas de stock y recepciones aunque el sistema esté cerrado.'}
                     </p>
                     <div className="mt-3 flex gap-2">
                         <Button
@@ -87,8 +98,9 @@ export function PushNotificationSetup() {
                         >
                             {isLoading
                                 ? 'Conectando…'
-                                : isReconnecting ? 'Reconectar' : 'Activar'
-                            }
+                                : isReconnecting
+                                  ? 'Reconectar'
+                                  : 'Activar'}
                         </Button>
                         <Button
                             size="sm"
@@ -158,8 +170,8 @@ export function PushNotificationToggle() {
                     {isSubscribed
                         ? 'Recibes alertas en este dispositivo aunque el sistema esté cerrado.'
                         : permission === 'granted'
-                            ? 'Permiso concedido pero sin suscripción activa en este dispositivo. Haz clic en Activar.'
-                            : 'Actívalas para recibir alertas de stock, caducidad y recepciones.'}
+                          ? 'Permiso concedido pero sin suscripción activa en este dispositivo. Haz clic en Activar.'
+                          : 'Actívalas para recibir alertas de stock, caducidad y recepciones.'}
                 </p>
             </div>
             <Button

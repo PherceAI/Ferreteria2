@@ -130,7 +130,7 @@ final class GmailApiService
             ->get("{$this->baseUrl}/messages/{$messageId}/attachments/{$attachmentId}");
 
         if ($response->failed()) {
-            throw new RuntimeException("Gmail get attachment failed: ".$response->body());
+            throw new RuntimeException('Gmail get attachment failed: '.$response->body());
         }
 
         return $this->decodeBase64Url($response->json('data'));

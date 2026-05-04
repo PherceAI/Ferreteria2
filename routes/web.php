@@ -4,6 +4,7 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\Logistics\FleetController;
 use App\Http\Controllers\Notifications\PushSubscriptionController;
 use App\Http\Controllers\Purchasing\GmailOAuthController;
+use App\Http\Controllers\Team\EmployeeController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -48,9 +49,9 @@ Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
     });
 
     Route::prefix('equipo')->name('team.')->group(function () {
-        Route::get('empleados', [App\Http\Controllers\Team\EmployeeController::class, 'index'])->name('employees.index');
-        Route::put('empleados/{user}/branches', [App\Http\Controllers\Team\EmployeeController::class, 'updateBranches'])->name('employees.branches.update');
-        Route::put('empleados/{user}/roles', [App\Http\Controllers\Team\EmployeeController::class, 'updateRoles'])->name('employees.roles.update');
+        Route::get('empleados', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::put('empleados/{user}/branches', [EmployeeController::class, 'updateBranches'])->name('employees.branches.update');
+        Route::put('empleados/{user}/roles', [EmployeeController::class, 'updateRoles'])->name('employees.roles.update');
     });
 
     Route::prefix('logistica')->name('logistics.')->group(function () {

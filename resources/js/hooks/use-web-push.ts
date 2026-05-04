@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
  * Convierte una clave pública VAPID en base64url a Uint8Array.
  * Necesario para el argumento applicationServerKey de pushManager.subscribe().
  */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding)
         .replace(/-/g, '+')
@@ -17,7 +17,10 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
         output[i] = rawData.charCodeAt(i);
     }
 
-    return output;
+    return output.buffer.slice(
+        output.byteOffset,
+        output.byteOffset + output.byteLength,
+    );
 }
 
 /** Convierte un ArrayBuffer a base64 para enviarlo al servidor. */
@@ -68,14 +71,18 @@ export function useWebPush(): WebPushState {
         let resolved = false;
 
         const handleReady = async () => {
-            if (resolved) return;
+            if (resolved) {
+                return;
+            }
+
             resolved = true;
 
             try {
                 // Ensure SW is registered first
                 await navigator.serviceWorker.register('/sw.js');
                 const registration = await navigator.serviceWorker.ready;
-                const subscription = await registration.pushManager.getSubscription();
+                const subscription =
+                    await registration.pushManager.getSubscription();
                 const currentVersion = localStorage.getItem(storageKey);
 
                 if (subscription && currentVersion !== PUSH_VERSION) {
@@ -126,14 +133,16 @@ export function useWebPush(): WebPushState {
             const registration = await navigator.serviceWorker.ready;
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+                applicationServerKey: urlBase64ToArrayBuffer(vapidPublicKey),
             });
 
             // 3. Extraer claves para enviar al servidor
             const p256dhKey = subscription.getKey('p256dh');
             const authKey = subscription.getKey('auth');
             const contentEncoding = ((
-                PushManager as { supportedContentEncodings?: string[] }
+                PushManager as unknown as {
+                    readonly supportedContentEncodings?: readonly string[];
+                }
             ).supportedContentEncodings ?? ['aesgcm'])[0];
 
             // 4. Guardar suscripción en el servidor via fetch (no Inertia router)

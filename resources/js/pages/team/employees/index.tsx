@@ -1,14 +1,10 @@
-import { FormEventHandler, useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
-import {
-    Building2,
-    Check,
-    Shield,
-    Users,
-} from 'lucide-react';
+import { Building2, Shield, Users } from 'lucide-react';
+import type { FormEventHandler } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -59,19 +55,28 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
 
     const openBranchModal = (user: User) => {
         setSelectedUser(user);
-        branchForm.setData('branch_ids', user.branches.map((b) => b.id));
+        branchForm.setData(
+            'branch_ids',
+            user.branches.map((b) => b.id),
+        );
         setIsBranchModalOpen(true);
     };
 
     const openRoleModal = (user: User) => {
         setSelectedUser(user);
-        roleForm.setData('role_names', user.roles.map((r) => r.name));
+        roleForm.setData(
+            'role_names',
+            user.roles.map((r) => r.name),
+        );
         setIsRoleModalOpen(true);
     };
 
     const handleBranchSubmit: FormEventHandler = (e) => {
         e.preventDefault();
-        if (!selectedUser) return;
+
+        if (!selectedUser) {
+            return;
+        }
 
         branchForm.put(`/equipo/empleados/${selectedUser.id}/branches`, {
             onSuccess: () => setIsBranchModalOpen(false),
@@ -80,7 +85,10 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
 
     const handleRoleSubmit: FormEventHandler = (e) => {
         e.preventDefault();
-        if (!selectedUser) return;
+
+        if (!selectedUser) {
+            return;
+        }
 
         roleForm.put(`/equipo/empleados/${selectedUser.id}/roles`, {
             onSuccess: () => setIsRoleModalOpen(false),
@@ -113,16 +121,20 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                         Equipo de Trabajo
                     </h1>
                     <p className="text-sm text-neutral-500 dark:text-zinc-400">
-                        Gestiona el acceso a sucursales y roles operativos para todo el personal.
+                        Gestiona el acceso a sucursales y roles operativos para
+                        todo el personal.
                     </p>
                 </div>
 
                 <div className="grid gap-6">
                     {users.map((user) => (
-                        <Card key={user.id} className="border-neutral-200 shadow-none dark:border-zinc-800">
+                        <Card
+                            key={user.id}
+                            className="border-neutral-200 shadow-none dark:border-zinc-800"
+                        >
                             <CardContent className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:justify-between">
                                 {/* Información del Usuario */}
-                                <div className="flex items-center gap-4 lg:w-[300px] shrink-0">
+                                <div className="flex shrink-0 items-center gap-4 lg:w-[300px]">
                                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-zinc-800 dark:text-zinc-400">
                                         <Users className="h-6 w-6" />
                                     </div>
@@ -138,7 +150,7 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
 
                                 {/* Bloque Central: Sucursales y Roles */}
                                 <div className="flex flex-1 flex-col gap-6 sm:flex-row sm:items-start lg:justify-end lg:pr-8">
-                                    <div className="flex flex-1 flex-col gap-2 max-w-[350px]">
+                                    <div className="flex max-w-[350px] flex-1 flex-col gap-2">
                                         <span className="text-xs font-medium text-neutral-500 dark:text-zinc-400">
                                             SUCURSALES ASIGNADAS
                                         </span>
@@ -163,7 +175,7 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col gap-2 sm:w-[180px] shrink-0">
+                                    <div className="flex shrink-0 flex-col gap-2 sm:w-[180px]">
                                         <span className="text-xs font-medium text-neutral-500 dark:text-zinc-400">
                                             ROLES OPERATIVOS
                                         </span>
@@ -173,7 +185,7 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                                     <Badge
                                                         key={role.id}
                                                         variant="outline"
-                                                        className="flex items-center gap-1 rounded-lg font-normal border-neutral-200 dark:border-zinc-800"
+                                                        className="flex items-center gap-1 rounded-lg border-neutral-200 font-normal dark:border-zinc-800"
                                                     >
                                                         <Shield className="h-3 w-3 text-neutral-500" />
                                                         {role.name}
@@ -190,7 +202,7 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                 </div>
 
                                 {/* Botones de Acción */}
-                                <div className="flex items-center gap-2 shrink-0 lg:ml-auto">
+                                <div className="flex shrink-0 items-center gap-2 lg:ml-auto">
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -217,32 +229,46 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
             </div>
 
             {/* Modal de Sucursales */}
-            <Dialog open={isBranchModalOpen} onOpenChange={setIsBranchModalOpen}>
-                <DialogContent className="sm:max-w-[425px] rounded-xl border-neutral-200 shadow-sm dark:border-zinc-800">
+            <Dialog
+                open={isBranchModalOpen}
+                onOpenChange={setIsBranchModalOpen}
+            >
+                <DialogContent className="rounded-xl border-neutral-200 shadow-sm sm:max-w-[425px] dark:border-zinc-800">
                     <form onSubmit={handleBranchSubmit}>
                         <DialogHeader>
                             <DialogTitle className="text-lg font-medium tracking-[-0.02em]">
                                 Asignar Sucursales
                             </DialogTitle>
                             <DialogDescription className="text-sm">
-                                Selecciona a qué sucursales tendrá acceso {selectedUser?.name}.
+                                Selecciona a qué sucursales tendrá acceso{' '}
+                                {selectedUser?.name}.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-6">
                             {branches.map((branch) => (
-                                <div key={branch.id} className="flex items-center space-x-3">
+                                <div
+                                    key={branch.id}
+                                    className="flex items-center space-x-3"
+                                >
                                     <Checkbox
                                         id={`branch-${branch.id}`}
-                                        checked={branchForm.data.branch_ids.includes(branch.id)}
-                                        onCheckedChange={() => toggleBranch(branch.id)}
+                                        checked={branchForm.data.branch_ids.includes(
+                                            branch.id,
+                                        )}
+                                        onCheckedChange={() =>
+                                            toggleBranch(branch.id)
+                                        }
                                     />
                                     <label
                                         htmlFor={`branch-${branch.id}`}
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                     >
                                         {branch.name}
                                         {branch.is_headquarters && (
-                                            <Badge variant="secondary" className="ml-2 text-[10px]">
+                                            <Badge
+                                                variant="secondary"
+                                                className="ml-2 text-[10px]"
+                                            >
                                                 MATRIZ
                                             </Badge>
                                         )}
@@ -259,8 +285,14 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                             >
                                 Cancelar
                             </Button>
-                            <Button type="submit" disabled={branchForm.processing} className="rounded-lg">
-                                {branchForm.processing ? 'Guardando...' : 'Guardar Cambios'}
+                            <Button
+                                type="submit"
+                                disabled={branchForm.processing}
+                                className="rounded-lg"
+                            >
+                                {branchForm.processing
+                                    ? 'Guardando...'
+                                    : 'Guardar Cambios'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -269,27 +301,35 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
 
             {/* Modal de Roles */}
             <Dialog open={isRoleModalOpen} onOpenChange={setIsRoleModalOpen}>
-                <DialogContent className="sm:max-w-[425px] rounded-xl border-neutral-200 shadow-sm dark:border-zinc-800">
+                <DialogContent className="rounded-xl border-neutral-200 shadow-sm sm:max-w-[425px] dark:border-zinc-800">
                     <form onSubmit={handleRoleSubmit}>
                         <DialogHeader>
                             <DialogTitle className="text-lg font-medium tracking-[-0.02em]">
                                 Asignar Roles
                             </DialogTitle>
                             <DialogDescription className="text-sm">
-                                Define los permisos y el rol operativo para {selectedUser?.name}.
+                                Define los permisos y el rol operativo para{' '}
+                                {selectedUser?.name}.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-6">
                             {roles.map((role) => (
-                                <div key={role.id} className="flex items-center space-x-3">
+                                <div
+                                    key={role.id}
+                                    className="flex items-center space-x-3"
+                                >
                                     <Checkbox
                                         id={`role-${role.id}`}
-                                        checked={roleForm.data.role_names.includes(role.name)}
-                                        onCheckedChange={() => toggleRole(role.name)}
+                                        checked={roleForm.data.role_names.includes(
+                                            role.name,
+                                        )}
+                                        onCheckedChange={() =>
+                                            toggleRole(role.name)
+                                        }
                                     />
                                     <label
                                         htmlFor={`role-${role.id}`}
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                        className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                     >
                                         {role.name}
                                     </label>
@@ -305,8 +345,14 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                             >
                                 Cancelar
                             </Button>
-                            <Button type="submit" disabled={roleForm.processing} className="rounded-lg">
-                                {roleForm.processing ? 'Guardando...' : 'Guardar Cambios'}
+                            <Button
+                                type="submit"
+                                disabled={roleForm.processing}
+                                className="rounded-lg"
+                            >
+                                {roleForm.processing
+                                    ? 'Guardando...'
+                                    : 'Guardar Cambios'}
                             </Button>
                         </DialogFooter>
                     </form>

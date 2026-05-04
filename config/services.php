@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'ubika' => [
+        'devices_url' => env('UBIKA_DEVICES_URL', 'https://plataforma.ubikarecuador.com/api/get_devices'),
+        'user_api_hash' => env('UBIKA_USER_API_HASH'),
+    ],
+
 ];

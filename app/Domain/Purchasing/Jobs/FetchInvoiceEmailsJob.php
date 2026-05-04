@@ -8,7 +8,6 @@ use App\Domain\Purchasing\Services\EcuadorianInvoiceXmlParser;
 use App\Domain\Purchasing\Services\GmailApiService;
 use App\Domain\Purchasing\Services\GmailOAuthService;
 use App\Domain\Purchasing\Services\PurchaseInvoiceService;
-use App\Models\Branch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

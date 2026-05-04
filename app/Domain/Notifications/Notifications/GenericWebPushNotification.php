@@ -37,7 +37,7 @@ final class GenericWebPushNotification extends Notification
             // Incluimos severity en el payload para que el Service Worker
             // pueda aplicar vibración y sonido diferenciados por nivel de alerta
             ->data([
-                'url'      => $this->data->url,
+                'url' => $this->data->url,
                 'severity' => $this->data->severity,
             ]);
 
