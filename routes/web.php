@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\Inventory\InventoryProductController;
 use App\Http\Controllers\Logistics\FleetController;
 use App\Http\Controllers\Notifications\PushSubscriptionController;
 use App\Http\Controllers\Purchasing\GmailOAuthController;
@@ -39,7 +40,7 @@ Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
-        Route::inertia('products', 'inventory/products/index')->name('products.index');
+        Route::get('products', [InventoryProductController::class, 'index'])->name('products.index');
         Route::inertia('transfers', 'inventory/transfers/index')->name('transfers.index');
     });
 

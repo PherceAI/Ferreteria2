@@ -1,131 +1,197 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     AlertTriangle,
+    ArchiveX,
+    Package,
     PackageX,
     Search,
-    TrendingUp,
-    Truck,
+    Tag,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
-// =======================
-// DATOS MOCK PARA DISEÑO
-// =======================
-const kpiData = [
-    {
-        title: 'Stock Bajo',
-        value: '14',
-        icon: PackageX,
-        color: 'text-red-500',
-        bg: 'bg-red-50 dark:bg-red-950/20',
-        desc: 'Artículos bajo el mínimo',
-    },
-    {
-        title: 'Por Vencerse',
-        value: '3',
-        icon: AlertTriangle,
-        color: 'text-amber-500',
-        bg: 'bg-amber-50 dark:bg-amber-950/20',
-        desc: 'Próximos 30 días',
-    },
-    {
-        title: 'En Tránsito',
-        value: '5',
-        icon: Truck,
-        color: 'text-blue-500',
-        bg: 'bg-blue-50 dark:bg-blue-950/20',
-        desc: 'Órdenes en camino',
-    },
-    {
-        title: 'Top Ventas',
-        value: 'Cemento H.',
-        icon: TrendingUp,
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-50 dark:bg-emerald-950/20',
-        desc: 'Líder del mes',
-    },
-];
+type InventoryProduct = {
+    id: number;
+    code: string;
+    name: string;
+    unit: string | null;
+    current_stock: number;
+    cost: number | null;
+    sale_price: number | null;
+    min_stock: number;
+    inventory_updated_at: string | null;
+};
 
-const catalogData = [
-    {
-        code: 'CEM-001',
-        name: 'Cemento Holcim Fuerte 50Kg',
-        cost: 7.15,
-        price: 8.5,
-        minStock: 50,
-        actualStock: 120,
-    },
-    {
-        code: 'VAR-12M',
-        name: 'Varilla Corrugada 12mm',
-        cost: 4.5,
-        price: 5.8,
-        minStock: 200,
-        actualStock: 310,
-    },
-    {
-        code: 'TUB-PVC',
-        name: 'Tubo PVC 1/2" Tigre',
-        cost: 1.8,
-        price: 2.5,
-        minStock: 100,
-        actualStock: 45, // Bajo
-    },
-    {
-        code: 'PNT-LAT',
-        name: 'Pintura Suprema Látex Galón',
-        cost: 14.0,
-        price: 18.5,
-        minStock: 15,
-        actualStock: 12, // Bajo
-    },
-    {
-        code: 'CLV-ACR',
-        name: 'Clavo Acero 2" Cajas',
-        cost: 1.1,
-        price: 1.5,
-        minStock: 50,
-        actualStock: 180,
-    },
-    {
-        code: 'SEL-SIL',
-        name: 'Sellador Silicona Transparente',
-        cost: 3.2,
-        price: 4.9,
-        minStock: 20,
-        actualStock: 25, // Cerca del mínimo
-    },
-];
+type PaginationLink = {
+    url: string | null;
+    label: string;
+    active: boolean;
+};
 
-export default function ProductsIndex() {
-    const [query, setQuery] = useState('');
+type PaginatedProducts = {
+    data: InventoryProduct[];
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    links: PaginationLink[];
+    per_page: number;
+    to: number | null;
+    total: number;
+};
+
+type InventoryStats = {
+    total: number;
+    low_stock: number;
+    zero_stock: number;
+    without_price: number;
+};
+
+type Props = {
+    products: PaginatedProducts;
+    stats: InventoryStats;
+    filters: {
+        search: string;
+        per_page: number;
+    };
+};
+
+const currencyFormatter = new Intl.NumberFormat('es-EC', {
+    style: 'currency',
+    currency: 'USD',
+});
+
+const numberFormatter = new Intl.NumberFormat('es-EC', {
+    maximumFractionDigits: 3,
+});
+
+function money(value: number | null): string {
+    return value === null ? 'Pendiente' : currencyFormatter.format(value);
+}
+
+function stockStatus(product: InventoryProduct): {
+    label: string;
+    className: string;
+} {
+    if (product.current_stock <= 0) {
+        return {
+            label: 'Sin stock',
+            className:
+                'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300',
+        };
+    }
+
+    if (product.min_stock > 0 && product.current_stock <= product.min_stock) {
+        return {
+            label: 'Bajo',
+            className:
+                'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
+        };
+    }
+
+    return {
+        label: 'Disponible',
+        className:
+            'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
+    };
+}
+
+export default function ProductsIndex({ products, stats, filters }: Props) {
+    const [search, setSearch] = useState(filters.search);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            if (search === filters.search) {
+                return;
+            }
+
+            router.get(
+                '/inventory/products',
+                {
+                    search,
+                    per_page: filters.per_page,
+                },
+                {
+                    only: ['products', 'stats', 'filters'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                },
+            );
+        }, 350);
+
+        return () => window.clearTimeout(timeout);
+    }, [filters.per_page, filters.search, search]);
+
+    const kpis = useMemo(
+        () => [
+            {
+                title: 'Productos',
+                value: numberFormatter.format(stats.total),
+                desc: 'en sucursal matriz',
+                icon: Package,
+                color: 'text-sky-600',
+                bg: 'bg-sky-50 dark:bg-sky-950/30',
+            },
+            {
+                title: 'Sin stock',
+                value: numberFormatter.format(stats.zero_stock),
+                desc: 'requieren revisión',
+                icon: ArchiveX,
+                color: 'text-red-600',
+                bg: 'bg-red-50 dark:bg-red-950/30',
+            },
+            {
+                title: 'Stock bajo',
+                value: numberFormatter.format(stats.low_stock),
+                desc: 'según mínimo definido',
+                icon: PackageX,
+                color: 'text-amber-600',
+                bg: 'bg-amber-50 dark:bg-amber-950/30',
+            },
+            {
+                title: 'Sin precio',
+                value: numberFormatter.format(stats.without_price),
+                desc: 'pendientes de costeo',
+                icon: Tag,
+                color: 'text-violet-600',
+                bg: 'bg-violet-50 dark:bg-violet-950/30',
+            },
+        ],
+        [stats],
+    );
 
     return (
         <>
             <Head title="Inventario | Productos" />
 
             <div className="flex flex-col gap-6 p-6 font-sans">
-                {/* Cabecera */}
-                <div className="flex flex-col gap-1 tracking-[-0.02em]">
+                <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-semibold text-neutral-900 dark:text-zinc-50">
-                        Catálogo de Productos
+                        Productos
                     </h1>
                     <p className="text-sm text-neutral-500 dark:text-zinc-400">
-                        Monitor inteligente del inventario de la ferretería.
+                        Stock independiente de la sucursal matriz, consultado
+                        por páginas.
                     </p>
                 </div>
 
-                {/* KPIs (Las 4 Tarjetas Clave) */}
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {kpiData.map((kpi) => (
+                    {kpis.map((kpi) => (
                         <Card
                             key={kpi.title}
-                            className="flex flex-col justify-between border border-neutral-200 p-5 shadow-none dark:border-zinc-800"
+                            className="flex min-h-32 flex-col justify-between border border-neutral-200 p-5 shadow-none dark:border-zinc-800"
                         >
-                            <div className="mb-3 flex flex-row items-center justify-between">
+                            <div className="mb-3 flex items-center justify-between gap-3">
                                 <div className="text-sm font-medium text-neutral-500 dark:text-zinc-400">
                                     {kpi.title}
                                 </div>
@@ -138,130 +204,203 @@ export default function ProductsIndex() {
                                 </div>
                             </div>
                             <div>
-                                <div className="text-4xl font-bold tracking-tight text-neutral-900 dark:text-zinc-50">
+                                <div className="text-3xl font-bold text-neutral-900 dark:text-zinc-50">
                                     {kpi.value}
                                 </div>
-                                <div className="mt-1 flex items-center text-xs text-neutral-500">
-                                    <span>{kpi.desc}</span>
+                                <div className="mt-1 text-xs text-neutral-500">
+                                    {kpi.desc}
                                 </div>
                             </div>
                         </Card>
                     ))}
                 </div>
 
-                {/* Contenedor Principal: Búsqueda y Tabla */}
                 <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
-                    <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3 dark:border-zinc-800">
-                        {/* Barra de Búsqueda */}
-                        <div className="relative flex w-full max-w-sm items-center">
+                    <div className="flex flex-col gap-3 border-b border-neutral-200 px-4 py-3 md:flex-row md:items-center md:justify-between dark:border-zinc-800">
+                        <div className="relative flex w-full max-w-md items-center">
                             <Search className="pointer-events-none absolute left-3 h-4 w-4 text-neutral-500 dark:text-zinc-400" />
                             <Input
                                 type="search"
-                                placeholder="Buscar código o nombre de producto..."
+                                placeholder="Buscar código o producto..."
                                 className="w-full bg-white pl-9 shadow-sm dark:bg-zinc-950"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
+                                value={search}
+                                onChange={(event) =>
+                                    setSearch(event.target.value)
+                                }
                             />
                         </div>
+
+                        <Select
+                            value={String(filters.per_page)}
+                            onValueChange={(value) =>
+                                router.get(
+                                    '/inventory/products',
+                                    {
+                                        search: filters.search,
+                                        per_page: value,
+                                    },
+                                    {
+                                        only: ['products', 'stats', 'filters'],
+                                        preserveScroll: true,
+                                        preserveState: true,
+                                        replace: true,
+                                    },
+                                )
+                            }
+                        >
+                            <SelectTrigger className="w-36 bg-white dark:bg-zinc-950">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="25">
+                                    25 por página
+                                </SelectItem>
+                                <SelectItem value="50">
+                                    50 por página
+                                </SelectItem>
+                                <SelectItem value="100">
+                                    100 por página
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
-                    {/* Tabla de Productos Estilo Flat */}
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
-                            <thead className="border-b border-neutral-200 bg-neutral-50/50 text-neutral-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
+                            <thead className="border-b border-neutral-200 bg-neutral-50/80 text-neutral-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
                                 <tr>
                                     <th className="px-4 py-3 font-medium">
                                         Código
                                     </th>
-                                    <th className="px-4 py-3 font-medium">
-                                        Nombre
+                                    <th className="min-w-80 px-4 py-3 font-medium">
+                                        Producto
                                     </th>
                                     <th className="px-4 py-3 text-center font-medium">
+                                        Unidad
+                                    </th>
+                                    <th className="px-4 py-3 text-right font-medium">
+                                        Stock
+                                    </th>
+                                    <th className="px-4 py-3 text-right font-medium">
+                                        Mínimo
+                                    </th>
+                                    <th className="px-4 py-3 text-right font-medium">
                                         Costo
                                     </th>
-                                    <th className="px-4 py-3 text-center font-medium">
-                                        Precio Venta
+                                    <th className="px-4 py-3 text-right font-medium">
+                                        Venta
                                     </th>
                                     <th className="px-4 py-3 text-center font-medium">
-                                        Min
+                                        Estado
                                     </th>
-                                    <th className="px-4 py-3 text-center font-medium">
-                                        Stock Actual
+                                    <th className="px-4 py-3 text-right font-medium">
+                                        Actualizado
                                     </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-200 dark:divide-zinc-800">
-                                {catalogData
-                                    .filter(
-                                        (item) =>
-                                            query === '' ||
-                                            item.code
-                                                .toLowerCase()
-                                                .includes(
-                                                    query.toLowerCase(),
-                                                ) ||
-                                            item.name
-                                                .toLowerCase()
-                                                .includes(query.toLowerCase()),
-                                    )
-                                    .map((item) => {
-                                        const isCritical =
-                                            item.actualStock < item.minStock;
-                                        const isWarning =
-                                            item.actualStock >= item.minStock &&
-                                            item.actualStock <=
-                                                item.minStock * 1.25;
+                                {products.data.map((product) => {
+                                    const status = stockStatus(product);
 
-                                        let stockColor =
-                                            'text-green-600 dark:text-green-500';
-                                        let stockBg =
-                                            'bg-green-50 dark:bg-green-900/20';
-
-                                        if (isCritical) {
-                                            stockColor =
-                                                'text-red-600 dark:text-red-500';
-                                            stockBg =
-                                                'bg-red-50 dark:bg-red-900/20';
-                                        } else if (isWarning) {
-                                            stockColor =
-                                                'text-amber-600 dark:text-amber-500';
-                                            stockBg =
-                                                'bg-amber-50 dark:bg-amber-900/20';
-                                        }
-
-                                        return (
-                                            <tr
-                                                key={item.code}
-                                                className="transition-colors hover:bg-neutral-50/50 dark:hover:bg-zinc-900/50"
-                                            >
-                                                <td className="px-4 py-3 font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
-                                                    {item.code}
-                                                </td>
-                                                <td className="px-4 py-3 text-neutral-700 dark:text-zinc-300">
-                                                    {item.name}
-                                                </td>
-                                                <td className="px-4 py-3 text-center text-neutral-500">
-                                                    ${item.cost.toFixed(2)}
-                                                </td>
-                                                <td className="px-4 py-3 text-center font-semibold text-neutral-900 dark:text-zinc-100">
-                                                    ${item.price.toFixed(2)}
-                                                </td>
-                                                <td className="px-4 py-3 text-center text-neutral-500">
-                                                    {item.minStock}
-                                                </td>
-                                                <td className="px-4 py-3 text-center">
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className={`${stockBg} ${stockColor} shadow-none hover:bg-transparent`}
-                                                    >
-                                                        {item.actualStock}
-                                                    </Badge>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    return (
+                                        <tr
+                                            key={product.id}
+                                            className="transition-colors hover:bg-neutral-50/70 dark:hover:bg-zinc-900/50"
+                                        >
+                                            <td className="px-4 py-3 font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
+                                                {product.code}
+                                            </td>
+                                            <td className="px-4 py-3 text-neutral-700 dark:text-zinc-300">
+                                                {product.name}
+                                            </td>
+                                            <td className="px-4 py-3 text-center text-neutral-500">
+                                                {product.unit ?? '—'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-zinc-100">
+                                                {numberFormatter.format(
+                                                    product.current_stock,
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-neutral-500">
+                                                {numberFormatter.format(
+                                                    product.min_stock,
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-neutral-500">
+                                                {money(product.cost)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-neutral-500">
+                                                {money(product.sale_price)}
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`${status.className} shadow-none hover:bg-transparent`}
+                                                >
+                                                    {status.label}
+                                                </Badge>
+                                            </td>
+                                            <td className="px-4 py-3 text-right whitespace-nowrap text-neutral-500">
+                                                {product.inventory_updated_at ??
+                                                    '—'}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
+                    </div>
+
+                    {products.data.length === 0 ? (
+                        <div className="flex min-h-44 flex-col items-center justify-center gap-2 px-4 py-8 text-center text-neutral-500">
+                            <AlertTriangle className="h-5 w-5" />
+                            <p className="text-sm">
+                                No hay productos para la búsqueda actual.
+                            </p>
+                        </div>
+                    ) : null}
+
+                    <div className="flex flex-col gap-3 border-t border-neutral-200 px-4 py-3 text-sm text-neutral-500 md:flex-row md:items-center md:justify-between dark:border-zinc-800">
+                        <span>
+                            Mostrando {products.from ?? 0} - {products.to ?? 0}{' '}
+                            de {numberFormatter.format(products.total)}
+                        </span>
+
+                        <div className="flex flex-wrap items-center gap-1">
+                            {products.links.map((link, index) => (
+                                <Button
+                                    key={`${link.label}-${index}`}
+                                    variant={
+                                        link.active ? 'default' : 'outline'
+                                    }
+                                    size="sm"
+                                    disabled={link.url === null}
+                                    asChild={link.url !== null}
+                                >
+                                    {link.url === null ? (
+                                        <span
+                                            dangerouslySetInnerHTML={{
+                                                __html: link.label,
+                                            }}
+                                        />
+                                    ) : (
+                                        <Link
+                                            href={link.url}
+                                            preserveScroll
+                                            preserveState
+                                            only={[
+                                                'products',
+                                                'stats',
+                                                'filters',
+                                            ]}
+                                            dangerouslySetInnerHTML={{
+                                                __html: link.label,
+                                            }}
+                                        />
+                                    )}
+                                </Button>
+                            ))}
+                        </div>
                     </div>
                 </Card>
             </div>
