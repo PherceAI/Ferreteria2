@@ -4,7 +4,7 @@
 
     NO corre por defecto ni en CI. Requiere que el usuario tenga Postgres y
     Redis locales levantados antes de ejecutar. El objetivo de este suite es
-    validar los invariantes que la suite SQLite in-memory no puede cubrir:
+    validar invariantes contra Postgres y Redis reales:
 
       1. BranchScoped filtra contra Postgres real.
       2. Cache / Session / Queue sobre Redis estan bien cableados.

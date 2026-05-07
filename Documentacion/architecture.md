@@ -204,9 +204,9 @@ La topología `ferreteria_app` / `ferreteria_etl` se crea con dos archivos bajo 
 
 El proyecto tiene dos suites de test:
 
-1. **Suite rápida (default)** — `phpunit.xml`. Corre sobre SQLite in-memory, cache/queue/session en memoria, broadcasting nulo. Se ejecuta con `php artisan test` o `composer test`. Es la que corre en CI (`lint.yml`) y la que hay que mantener siempre verde.
+1. **Suite rapida (default)** - `phpunit.xml`. Debe correr sobre una base PostgreSQL de pruebas (`ferreteria_test`), cache/queue/session aisladas y broadcasting nulo. Se ejecuta con `php artisan test` o `composer test`. Es la que corre en CI (`lint.yml`) y la que hay que mantener siempre verde.
 
-2. **Suite de integración (opt-in)** — `phpunit.integration.xml` + `tests/Integration/`. Corre contra Postgres y Redis reales leyendo `.env.testing`. Valida invariants que la suite SQLite no puede: que `BranchScoped` filtra contra Postgres real, que Cache/Session/Queue sobre Redis están bien cableados, y que los grants de `ferreteria_app` efectivamente bloquean escrituras accidentales sobre `tini_raw`. Se ejecuta con:
+2. **Suite de integracion (opt-in)** - `phpunit.integration.xml` + `tests/Integration/`. Corre contra Postgres y Redis reales leyendo `.env.testing` o las variables locales disponibles. Valida que `BranchScoped` filtra contra Postgres real, que Cache/Session/Queue sobre Redis estan bien cableados, y que los grants de `ferreteria_app` efectivamente bloquean escrituras accidentales sobre `tini_raw`. Se ejecuta con:
    ```bash
    composer test:integration
    ```

@@ -48,4 +48,10 @@ final class ReceptionConfirmation extends Model
     {
         return $this->hasMany(ReceptionConfirmationItem::class, 'confirmation_id');
     }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(PurchaseInvoiceEvent::class, 'reception_confirmation_id')
+            ->latest();
+    }
 }

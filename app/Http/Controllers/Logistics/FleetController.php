@@ -4,73 +4,41 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Logistics;
 
+use App\Domain\Logistics\Models\FleetAlertSetting;
+use App\Domain\Logistics\Services\FleetTelemetryService;
 use App\Domain\Notifications\DTOs\WebPushData;
 use App\Domain\Notifications\Notifications\GenericWebPushNotification;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use RuntimeException;
 
-/**
- * Proxy seguro entre el frontend y la API de rastreo GPS (Ubika Ecuador / Traccar).
- *
- * El hash de autenticación NUNCA se expone al browser — solo existe en el backend.
- * El controller consume la API externa, transforma los datos y los devuelve limpios.
- *
- * No necesita branch scope: la flota es de toda la empresa.
- * No necesita auditoría: es consulta de lectura de API externa.
- */
 final class FleetController extends Controller
 {
-    /**
-     * Obtiene el estado en tiempo real de todos los vehículos de la flota
-     * haciendo proxy a la API de Ubika Ecuador.
-     *
-     * El frontend llama a este endpoint al presionar "Actualizar".
-     */
+    public function __construct(
+        private readonly FleetTelemetryService $fleetTelemetryService,
+    ) {}
+
     public function refresh(Request $request): JsonResponse
     {
-        $apiUrl = config('services.ubika.devices_url');
-        $apiHash = config('services.ubika.user_api_hash');
-
-        if (! is_string($apiUrl) || $apiUrl === '' || ! is_string($apiHash) || $apiHash === '') {
-            Log::warning('Fleet API credentials are not configured.');
-
-            return response()->json([
-                'success' => false,
-                'message' => 'La integración GPS no está configurada. Verifique las credenciales del servicio.',
-            ], 503);
-        }
-
         try {
-            $response = Http::timeout(15)->get($apiUrl, [
-                'user_api_hash' => $apiHash,
-                'lang' => 'es',
-            ]);
-
-            if (! $response->successful()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo conectar con la plataforma GPS. Intente nuevamente.',
-                ], 503);
-            }
-
-            $raw = $response->json();
-
-            // La API devuelve un array de grupos. Aplanamos todos los items.
-            $vehicles = collect($raw)
-                ->flatMap(fn (array $group) => $group['items'] ?? [])
-                ->map(fn (array $v) => $this->transformVehicle($v))
-                ->values()
-                ->all();
+            $dashboard = $this->fleetTelemetryService->buildDashboard();
 
             return response()->json([
                 'success' => true,
-                'vehicles' => $vehicles,
-                'refreshed_at' => now()->setTimezone('America/Guayaquil')->format('d/m/Y H:i:s'),
+                ...$dashboard,
             ]);
+        } catch (RuntimeException $e) {
+            Log::warning('FleetController::refresh unavailable', ['reason' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 503);
         } catch (\Throwable $e) {
             Log::error('FleetController::refresh error', ['exception' => $e->getMessage()]);
 
@@ -81,12 +49,6 @@ final class FleetController extends Controller
         }
     }
 
-    /**
-     * Envía notificaciones push de prueba específicas de logística/flota
-     * a todos los usuarios con suscripciones activas.
-     *
-     * Diseñado para demos: el cliente puede ver cómo llegarían las alertas reales.
-     */
     public function testFleetAlerts(Request $request): JsonResponse
     {
         $users = User::whereHas('pushSubscriptions')->get();
@@ -94,24 +56,24 @@ final class FleetController extends Controller
         if ($users->isEmpty()) {
             return response()->json([
                 'sent' => false,
-                'message' => 'No hay dispositivos con notificaciones activas. Actívalas primero desde el banner.',
+                'message' => 'No hay dispositivos con notificaciones activas. Activalas primero desde el banner.',
             ], 422);
         }
 
         $notifications = [
             new WebPushData(
-                title: '🚛 Motor encendido sin moverse — HINO PCG9217',
-                body: 'El vehículo lleva más de 10 minutos con el motor prendido sin desplazarse. Posible desperdicio de combustible.',
-                severity: 'warning',
-            ),
-            new WebPushData(
-                title: '⚡ Velocidad excesiva — TRAILER JLL UD HAA5035',
-                body: 'El vehículo circula a 78 km/h. Verificar ruta y notificar al conductor.',
+                title: 'GPS sin energia - MULA HINO PBW2792',
+                body: 'El rastreador reporta 0 V. Revisar bateria, fusible o posible desconexion antes de despachar.',
                 severity: 'critical',
             ),
             new WebPushData(
-                title: '⏱ Inactividad prolongada — VOLQUETA NPR PBE2233',
-                body: 'El vehículo lleva más de 3 horas detenido con motor apagado. ¿Hay una novedad operativa?',
+                title: 'Mantenimiento preventivo - MATRIZ NPR HBD9032',
+                body: 'La unidad esta cerca del siguiente hito de kilometraje. Reservar taller y repuestos esta semana.',
+                severity: 'warning',
+            ),
+            new WebPushData(
+                title: 'Unidad subutilizada - VOLQUETA NPR PBE2233',
+                body: 'No registra movimiento reciente. Confirmar si esta disponible, en taller o sin asignacion.',
                 severity: 'info',
             ),
         ];
@@ -122,6 +84,7 @@ final class FleetController extends Controller
             foreach ($users as $user) {
                 $user->notify(new GenericWebPushNotification($data));
             }
+
             $sent++;
             sleep(1);
         }
@@ -133,48 +96,60 @@ final class FleetController extends Controller
         ]);
     }
 
-    /**
-     * Transforma un vehículo del formato raw de la API al formato limpio
-     * que consume el frontend. Solo expone los campos necesarios.
-     *
-     * @param  array<string,mixed>  $v
-     * @return array<string,mixed>
-     */
-    private function transformVehicle(array $v): array
+    public function saveAlertSettings(Request $request): JsonResponse
     {
-        // Extraer sensores por tag_name para acceso fácil
-        $sensors = collect($v['sensors'] ?? [])
-            ->keyBy('tag_name')
-            ->all();
+        $validated = $request->validate([
+            'scope' => ['required', Rule::in(['global', 'vehicle'])],
+            'vehicle_external_id' => ['nullable', 'string', 'max:80'],
+            'vehicle_name' => ['nullable', 'string', 'max:255'],
+            'stopped_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            'idle_minutes' => ['required', 'integer', 'min:1', 'max:240'],
+            'speed_limit_kph' => ['required', 'integer', 'min:1', 'max:160'],
+            'min_voltage_12' => ['required', 'numeric', 'min:0', 'max:18'],
+            'min_voltage_24' => ['required', 'numeric', 'min:0', 'max:32'],
+            'stale_minutes' => ['required', 'integer', 'min:1', 'max:240'],
+            'gps_signal_enabled' => ['required', 'boolean'],
+            'voltage_enabled' => ['required', 'boolean'],
+            'route_stop_enabled' => ['required', 'boolean'],
+        ]);
 
-        $batteryVehicle = $sensors['power']['value'] ?? '—';
-        $ignition = $sensors['ignition']['value'] ?? 'OFF';
-        $satellites = $sensors['sat']['value'] ?? '0';
+        $scope = (string) $validated['scope'];
+        $vehicleExternalId = $scope === 'vehicle' ? trim((string) ($validated['vehicle_external_id'] ?? '')) : '';
 
-        // Determinar estado semáforo
-        $status = match (true) {
-            ($v['online'] === 'online' || $v['online'] === 'moving') && (float) $v['speed'] > 0 => 'moving',
-            ($v['online'] === 'engine') || ($v['engine_status'] ?? false) === true => 'idle',
-            $v['online'] === 'offline' => 'offline',
-            default => 'stopped',
-        };
+        if ($scope === 'vehicle' && $vehicleExternalId === '') {
+            return response()->json([
+                'saved' => false,
+                'message' => 'Selecciona un vehiculo valido para guardar alertas especificas.',
+            ], 422);
+        }
 
-        return [
-            'id' => $v['id'],
-            'name' => $v['name'],
-            'status' => $status,   // moving | idle | stopped | offline
-            'speed' => (float) ($v['speed'] ?? 0),
-            'stop_duration' => $v['stop_duration'] ?? '—',
-            'stop_duration_sec' => (int) ($v['stop_duration_sec'] ?? 0),
-            'engine_on' => $ignition === 'ON',
-            'battery_vehicle' => $batteryVehicle,
-            'satellites' => (int) $satellites,
-            'lat' => (float) ($v['lat'] ?? 0),
-            'lng' => (float) ($v['lng'] ?? 0),
-            'total_distance_km' => round((float) ($v['total_distance'] ?? 0), 2),
-            'expiration_date' => isset($v['device_data']['expiration_date'])
-                ? substr($v['device_data']['expiration_date'], 0, 10)
-                : null,
-        ];
+        $branchId = (int) Context::get('branch_id');
+
+        FleetAlertSetting::query()->updateOrCreate(
+            [
+                'branch_id' => $branchId,
+                'scope' => $scope,
+                'vehicle_external_id' => $vehicleExternalId,
+            ],
+            [
+                'vehicle_name' => $scope === 'vehicle' ? ($validated['vehicle_name'] ?? null) : null,
+                'stopped_minutes' => $validated['stopped_minutes'],
+                'idle_minutes' => $validated['idle_minutes'],
+                'speed_limit_kph' => $validated['speed_limit_kph'],
+                'min_voltage_12' => $validated['min_voltage_12'],
+                'min_voltage_24' => $validated['min_voltage_24'],
+                'stale_minutes' => $validated['stale_minutes'],
+                'gps_signal_enabled' => $validated['gps_signal_enabled'],
+                'voltage_enabled' => $validated['voltage_enabled'],
+                'route_stop_enabled' => $validated['route_stop_enabled'],
+            ],
+        );
+
+        return response()->json([
+            'saved' => true,
+            'message' => $scope === 'global'
+                ? 'Configuracion global guardada.'
+                : 'Configuracion del vehiculo guardada.',
+        ]);
     }
 }

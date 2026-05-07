@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Inventory\InventoryProductController;
 use App\Http\Controllers\Logistics\FleetController;
 use App\Http\Controllers\Notifications\PushSubscriptionController;
 use App\Http\Controllers\Purchasing\GmailOAuthController;
+use App\Http\Controllers\Purchasing\PurchasingReceiptController;
 use App\Http\Controllers\Team\EmployeeController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -37,7 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('products', [InventoryProductController::class, 'index'])->name('products.index');
@@ -46,19 +48,25 @@ Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
 
     Route::prefix('compras')->name('purchasing.')->group(function () {
         Route::inertia('/', 'purchasing/index')->name('index');
-        Route::inertia('recepcion', 'purchasing/receipt/index')->name('receipt.index');
+        Route::get('recepcion', [PurchasingReceiptController::class, 'index'])->name('receipt.index');
+        Route::post('recepcion/{confirmation}/iniciar', [PurchasingReceiptController::class, 'start'])->name('receipt.start');
+        Route::post('recepcion/{confirmation}/confirmar', [PurchasingReceiptController::class, 'confirm'])->name('receipt.confirm');
+        Route::post('recepcion/facturas/{invoice}/cerrar', [PurchasingReceiptController::class, 'close'])->name('receipt.close');
     });
 
     Route::prefix('equipo')->name('team.')->group(function () {
         Route::get('empleados', [EmployeeController::class, 'index'])->name('employees.index');
         Route::put('empleados/{user}/branches', [EmployeeController::class, 'updateBranches'])->name('employees.branches.update');
         Route::put('empleados/{user}/roles', [EmployeeController::class, 'updateRoles'])->name('employees.roles.update');
+        Route::patch('empleados/{user}/estado', [EmployeeController::class, 'updateStatus'])->name('employees.status.update');
+        Route::delete('empleados/{user}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
     });
 
     Route::prefix('logistica')->name('logistics.')->group(function () {
         Route::inertia('/', 'logistics/index')->name('index');
         Route::post('fleet/refresh', [FleetController::class, 'refresh'])->name('fleet.refresh');
         Route::post('fleet/alert-test', [FleetController::class, 'testFleetAlerts'])->name('fleet.alert-test');
+        Route::post('fleet/alert-settings', [FleetController::class, 'saveAlertSettings'])->name('fleet.alert-settings');
     });
 });
 

@@ -24,8 +24,17 @@ final class InventoryProduct extends Model
         'current_stock',
         'cost',
         'sale_price',
+        'last_purchase_cost',
+        'total_cost',
+        'supplier_code',
+        'supplier_name',
+        'category_code',
+        'category_name',
+        'subcategory_code',
+        'subcategory_name',
         'min_stock',
         'inventory_updated_at',
+        'valued_inventory_updated_at',
         'import_source',
         'source_row',
     ];
@@ -36,8 +45,11 @@ final class InventoryProduct extends Model
             'current_stock' => 'decimal:3',
             'cost' => 'decimal:4',
             'sale_price' => 'decimal:4',
+            'last_purchase_cost' => 'decimal:4',
+            'total_cost' => 'decimal:4',
             'min_stock' => 'decimal:3',
             'inventory_updated_at' => 'datetime',
+            'valued_inventory_updated_at' => 'datetime',
         ];
     }
 

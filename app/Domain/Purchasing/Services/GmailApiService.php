@@ -21,7 +21,7 @@ final class GmailApiService
      *
      * @return array<string>
      */
-    public function fetchUnreadInvoiceMessageIds(string $accessToken): array
+    public function fetchUnreadPurchaseDocumentMessageIds(string $accessToken): array
     {
         $response = Http::withToken($accessToken)
             ->get("{$this->baseUrl}/messages", [
@@ -40,6 +40,14 @@ final class GmailApiService
         }
 
         return array_column($data['messages'], 'id');
+    }
+
+    /**
+     * @return array<string>
+     */
+    public function fetchUnreadInvoiceMessageIds(string $accessToken): array
+    {
+        return $this->fetchUnreadPurchaseDocumentMessageIds($accessToken);
     }
 
     /**
@@ -66,9 +74,7 @@ final class GmailApiService
      */
     public function extractXmlAttachment(string $accessToken, array $message): ?string
     {
-        $parts = $message['payload']['parts'] ?? [];
-
-        foreach ($parts as $part) {
+        foreach ($this->flattenParts($message['payload'] ?? []) as $part) {
             if (! $this->isXmlAttachment($part)) {
                 continue;
             }
@@ -122,6 +128,22 @@ final class GmailApiService
 
         return str_ends_with($filename, '.xml') ||
             in_array($mimeType, ['application/xml', 'text/xml', 'application/octet-stream'], true) && str_ends_with($filename, '.xml');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function flattenParts(array $part): array
+    {
+        $parts = [$part];
+
+        foreach ($part['parts'] ?? [] as $child) {
+            if (is_array($child)) {
+                $parts = [...$parts, ...$this->flattenParts($child)];
+            }
+        }
+
+        return $parts;
     }
 
     private function fetchAttachmentData(string $accessToken, string $messageId, string $attachmentId): string

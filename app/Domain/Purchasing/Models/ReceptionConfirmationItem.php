@@ -16,10 +16,12 @@ final class ReceptionConfirmationItem extends Model
 
     protected $fillable = [
         'confirmation_id',
+        'purchase_invoice_item_id',
         'tini_product_id',
         'description',
         'expected_qty',
         'received_qty',
+        'condition_status',
         'has_discrepancy',
         'discrepancy_notes',
     ];
@@ -36,5 +38,10 @@ final class ReceptionConfirmationItem extends Model
     public function confirmation(): BelongsTo
     {
         return $this->belongsTo(ReceptionConfirmation::class, 'confirmation_id');
+    }
+
+    public function purchaseInvoiceItem(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseInvoiceItem::class, 'purchase_invoice_item_id');
     }
 }

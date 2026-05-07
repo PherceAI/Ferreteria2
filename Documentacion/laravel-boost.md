@@ -18,7 +18,7 @@ Boost ya esta instalado en el proyecto.
 - Paquete: `laravel/boost`
 - Version instalada: `v2.4.3`
 - Dependencia MCP: `laravel/mcp`
-- Configuracion MCP del repo: `.mcp.json`
+- Configuracion MCP del repo: `.mcp.json` ejecutando `php artisan boost:mcp --env=local`
 - Configuracion de Boost: `boost.json`
 - Guidelines generadas para Codex: `AGENTS.md`
 - Skills locales para agentes: `.codex/` y `.claude/skills/`
@@ -71,19 +71,21 @@ Cuando se solicite un cambio en este proyecto, Codex debe seguir este orden:
 6. Implementar cambios pequenos, coherentes con la arquitectura existente.
 7. Validar con comandos reales antes de cerrar.
 
-## Herramientas Boost que nos benefician
+## Herramientas Boost disponibles
 
-Boost expone herramientas pensadas para que la IA consulte el proyecto vivo. Las mas utiles para Ferreteria son:
+En la version instalada (`laravel/boost v2.4.3`), Boost expone estas herramientas MCP:
 
 - `application-info`: entender version de Laravel, PHP, paquetes y contexto de app.
+- `database-connections`: listar conexiones configuradas.
 - `database-schema`: revisar tablas, columnas, indices y relaciones antes de crear o modificar modelos.
-- `route-list` / inspector de rutas: confirmar middleware, nombres de rutas y controladores.
-- `config` / configuration access: validar valores efectivos sin leer secretos manualmente.
-- `logs` / error tracking: detectar errores recientes de Laravel y navegador.
+- `database-query`: ejecutar consultas de lectura controladas contra la base de datos.
+- `get-absolute-url`: resolver la URL correcta de una ruta o path del proyecto.
+- `last-error`: leer el ultimo error registrado por Laravel.
+- `read-log-entries`: revisar entradas recientes de logs.
+- `browser-logs`: leer errores recientes del navegador capturados por Boost.
 - `search-docs`: consultar documentacion oficial ajustada a las versiones instaladas.
-- `tinker` / ejecucion controlada: verificar queries o modelos con datos reales.
 
-Si estas herramientas no aparecen disponibles directamente en Codex, usar equivalentes locales:
+Si se necesita inspeccionar rutas, config o ejecutar pruebas puntuales y esas herramientas no aparecen disponibles directamente en Codex, usar equivalentes locales:
 
 ```bash
 php artisan about
@@ -207,6 +209,6 @@ Para seguridad/demo:
 ## Notas actuales
 
 - Boost esta instalado, pero con la demo en modo production los comandos aparecen usando `--env=local`.
-- La configuracion MCP ya apunta a `php artisan boost:mcp`.
+- La configuracion MCP ya apunta a `php artisan boost:mcp --env=local`.
 - Si el agente no ve el MCP de Boost directamente, debe usar Artisan como fallback y decirlo explicitamente.
 - La documentacion oficial de Boost debe ser la fuente principal cuando haya duda sobre capacidades o comandos.

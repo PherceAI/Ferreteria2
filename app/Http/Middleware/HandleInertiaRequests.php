@@ -43,6 +43,7 @@ class HandleInertiaRequests extends Middleware
                 'activeBranch' => $request->user()?->activeBranch,
                 'branches' => $request->user()?->branches()->orderByDesc('is_headquarters')->orderBy('name')->get(),
                 'canViewAllBranches' => $request->user()?->hasGlobalBranchAccess() ?? false,
+                'roles' => $request->user()?->roles()->pluck('name')->values() ?? [],
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Clave pública VAPID para que el frontend pueda suscribirse al push

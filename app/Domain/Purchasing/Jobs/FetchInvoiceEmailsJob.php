@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Purchasing\Jobs;
 
+use App\Domain\Purchasing\Exceptions\UnsupportedPurchaseDocumentException;
 use App\Domain\Purchasing\Services\EcuadorianInvoiceXmlParser;
 use App\Domain\Purchasing\Services\GmailApiService;
 use App\Domain\Purchasing\Services\GmailOAuthService;
 use App\Domain\Purchasing\Services\PurchaseInvoiceService;
+use App\Domain\Purchasing\Services\SupplierDocumentFilterService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -32,25 +34,36 @@ final class FetchInvoiceEmailsJob implements ShouldQueue
         GmailApiService $gmailService,
         EcuadorianInvoiceXmlParser $parser,
         PurchaseInvoiceService $invoiceService,
+        SupplierDocumentFilterService $supplierFilter,
     ): void {
-        try {
-            $accessToken = $oauthService->getValidAccessToken();
-        } catch (RuntimeException $e) {
-            Log::warning('[FetchInvoiceEmails] Gmail no autorizado: '.$e->getMessage());
+        $tokens = collect($oauthService->activeTokens());
+
+        if ($tokens->isEmpty()) {
+            Log::warning('[FetchInvoiceEmails] Gmail no autorizado: no hay correos activos.');
 
             return;
         }
 
-        $messageIds = $gmailService->fetchUnreadInvoiceMessageIds($accessToken);
+        foreach ($tokens as $token) {
+            try {
+                $accessToken = $oauthService->getValidAccessToken($token);
+            } catch (RuntimeException $e) {
+                Log::warning("[FetchInvoiceEmails] Gmail {$token->email} no autorizado: ".$e->getMessage());
 
-        if (empty($messageIds)) {
-            return;
-        }
+                continue;
+            }
 
-        Log::info("[FetchInvoiceEmails] {$this->branchId}: ".count($messageIds).' mensajes encontrados.');
+            $messageIds = $gmailService->fetchUnreadPurchaseDocumentMessageIds($accessToken);
 
-        foreach ($messageIds as $messageId) {
-            $this->processMessage($accessToken, $messageId, $gmailService, $parser, $invoiceService);
+            if (empty($messageIds)) {
+                continue;
+            }
+
+            Log::info("[FetchInvoiceEmails] {$this->branchId} {$token->email}: ".count($messageIds).' mensajes encontrados.');
+
+            foreach ($messageIds as $messageId) {
+                $this->processMessage($accessToken, $messageId, $gmailService, $parser, $invoiceService, $supplierFilter);
+            }
         }
     }
 
@@ -60,6 +73,7 @@ final class FetchInvoiceEmailsJob implements ShouldQueue
         GmailApiService $gmailService,
         EcuadorianInvoiceXmlParser $parser,
         PurchaseInvoiceService $invoiceService,
+        SupplierDocumentFilterService $supplierFilter,
     ): void {
         try {
             $message = $gmailService->getMessage($accessToken, $messageId);
@@ -73,6 +87,32 @@ final class FetchInvoiceEmailsJob implements ShouldQueue
             }
 
             $fromEmail = $gmailService->getFromEmail($message);
+            $metadata = $parser->metadata($xmlContent);
+
+            if (! $supplierFilter->isAllowed($metadata, $this->branchId)) {
+                Log::info("[FetchInvoiceEmails] Mensaje {$messageId} omitido: proveedor no reconocido en inventario o documento no relevante.", [
+                    'document_type' => $metadata->documentType,
+                    'supplier_ruc' => $metadata->supplierRuc,
+                    'supplier_name' => $metadata->supplierName,
+                    'from' => $fromEmail,
+                ]);
+                $gmailService->markAsRead($accessToken, $messageId);
+
+                return;
+            }
+
+            if ($metadata->documentType === 'notaCredito') {
+                Log::info('[FetchInvoiceEmails] Nota de credito relevante omitida para recepcion fisica.', [
+                    'supplier_ruc' => $metadata->supplierRuc,
+                    'supplier_name' => $metadata->supplierName,
+                    'access_key' => $metadata->accessKey,
+                    'from' => $fromEmail,
+                ]);
+                $gmailService->markAsRead($accessToken, $messageId);
+
+                return;
+            }
+
             $invoiceData = $parser->parse($xmlContent, $messageId, $fromEmail);
 
             $created = $invoiceService->createFromGmailMessage($invoiceData, $this->branchId);
@@ -83,6 +123,9 @@ final class FetchInvoiceEmailsJob implements ShouldQueue
                 Log::info("[FetchInvoiceEmails] Factura creada: {$created->invoice_number} (ID: {$created->id})");
             }
 
+            $gmailService->markAsRead($accessToken, $messageId);
+        } catch (UnsupportedPurchaseDocumentException $e) {
+            Log::info("[FetchInvoiceEmails] Mensaje {$messageId} omitido: ".$e->getMessage());
             $gmailService->markAsRead($accessToken, $messageId);
         } catch (Throwable $e) {
             Log::error("[FetchInvoiceEmails] Error procesando mensaje {$messageId}: ".$e->getMessage(), [

@@ -1,6 +1,8 @@
 <?php
 
 use App\Domain\Inventory\Services\InventoryProductImportService;
+use App\Domain\Inventory\Services\ValuedInventoryImportService;
+use App\Domain\Logistics\Services\FleetTelemetryService;
 use App\Domain\Purchasing\Jobs\FetchInvoiceEmailsJob;
 use App\Models\Branch;
 use Illuminate\Foundation\Inspiring;
@@ -45,6 +47,46 @@ Artisan::command('inventory:import-products {file} {--branch=1} {--source=csv}',
     return self::SUCCESS;
 })->purpose('Importar productos de inventario por sucursal desde un CSV limpio');
 
+Artisan::command('inventory:import-valued {file} {--branch=1} {--source=valued-csv}', function (ValuedInventoryImportService $importer): int {
+    $file = (string) $this->argument('file');
+    $branchId = (int) $this->option('branch');
+    $source = (string) $this->option('source');
+
+    if (! is_file($file)) {
+        $this->error("No se encontro el archivo: {$file}");
+
+        return self::FAILURE;
+    }
+
+    $branch = Branch::query()->find($branchId);
+
+    if ($branch === null) {
+        $this->error("No existe la sucursal {$branchId}.");
+
+        return self::FAILURE;
+    }
+
+    $result = $importer->importCsv($file, $branchId, $source);
+
+    $this->info("Inventario valorado importado para {$branch->name}.");
+    $this->line("Productos actualizados: {$result['matched']}");
+    $this->line("Codigos del archivo sin producto existente: {$result['missing']}");
+    $this->line("Filas omitidas: {$result['skipped']}");
+
+    return self::SUCCESS;
+})->purpose('Importar metadatos de inventario valorado por codigo desde CSV exportado');
+
+Artisan::command('fleet:snapshot', function (FleetTelemetryService $fleetTelemetryService): int {
+    $dashboard = $fleetTelemetryService->buildDashboard();
+
+    $this->info('Snapshot de flota guardado.');
+    $this->line('Vehiculos: '.$dashboard['kpis']['total']);
+    $this->line('Alertas criticas: '.$dashboard['kpis']['critical_alerts']);
+    $this->line('Riesgos electricos: '.$dashboard['kpis']['electrical_risks']);
+
+    return self::SUCCESS;
+})->purpose('Consultar Ubika y guardar telemetria historica de la flota');
+
 Schedule::everyFiveMinutes()
     ->onOneServer()
     ->withoutOverlapping()
@@ -52,13 +94,30 @@ Schedule::everyFiveMinutes()
         Schedule::command('horizon:snapshot');
     });
 
-// Revisar Gmail cada 15 minutos por sucursal activa buscando facturas con adjunto XML
+// Revisar Gmail cada 15 minutos y crear expedientes en la sucursal operativa de recepcion.
 Schedule::call(function (): void {
-    Branch::where('is_active', true)->each(function (Branch $branch): void {
+    $configuredBranchId = config('gmail_inbox.branch_id');
+
+    $branch = $configuredBranchId
+        ? Branch::query()->where('is_active', true)->find((int) $configuredBranchId)
+        : Branch::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_headquarters')
+            ->orderBy('id')
+            ->first();
+
+    if ($branch instanceof Branch) {
         FetchInvoiceEmailsJob::dispatch($branch->id);
-    });
+    }
 })
     ->name('fetch-invoice-emails')
+    ->everyFifteenMinutes()
+    ->onOneServer()
+    ->withoutOverlapping()
+    ->timezone('America/Guayaquil');
+
+Schedule::command('fleet:snapshot')
+    ->name('fleet-snapshot')
     ->everyFifteenMinutes()
     ->onOneServer()
     ->withoutOverlapping()

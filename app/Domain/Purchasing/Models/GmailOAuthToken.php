@@ -15,10 +15,14 @@ final class GmailOAuthToken extends Model
     protected $table = 'pherce_intel.gmail_oauth_tokens';
 
     protected $fillable = [
+        'email',
         'access_token',
         'refresh_token',
         'token_type',
+        'is_active',
         'expires_at',
+        'connected_at',
+        'last_used_at',
     ];
 
     protected array $encryptable = [
@@ -30,6 +34,9 @@ final class GmailOAuthToken extends Model
     {
         return [
             'expires_at' => 'datetime',
+            'connected_at' => 'datetime',
+            'is_active' => 'boolean',
+            'last_used_at' => 'datetime',
         ];
     }
 

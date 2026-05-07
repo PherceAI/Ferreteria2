@@ -41,14 +41,18 @@ final class GmailOAuthService
         }
 
         $data = $response->json();
+        $email = $this->fetchProfileEmail($data['access_token']);
 
-        GmailOAuthToken::query()->delete();
-
-        return GmailOAuthToken::create([
+        return GmailOAuthToken::updateOrCreate([
+            'email' => $email,
+        ], [
             'access_token' => $data['access_token'],
-            'refresh_token' => $data['refresh_token'],
+            'refresh_token' => $data['refresh_token']
+                ?? GmailOAuthToken::query()->where('email', $email)->value('refresh_token'),
             'token_type' => $data['token_type'] ?? 'Bearer',
+            'is_active' => true,
             'expires_at' => Carbon::now()->addSeconds($data['expires_in'] - 60),
+            'connected_at' => now(),
         ]);
     }
 
@@ -56,19 +60,35 @@ final class GmailOAuthService
      * @throws RuntimeException si no hay token configurado
      * @throws ConnectionException si falla el refresh
      */
-    public function getValidAccessToken(): string
+    public function getValidAccessToken(?GmailOAuthToken $token = null): string
     {
-        $token = GmailOAuthToken::latest()->first();
+        $token ??= GmailOAuthToken::query()
+            ->where('is_active', true)
+            ->latest()
+            ->first();
 
         if ($token === null) {
             throw new RuntimeException('Gmail OAuth no configurado. Visita /purchasing/gmail/connect para autorizar.');
         }
 
         if (! $token->isExpired()) {
+            $token->forceFill(['last_used_at' => now()])->save();
+
             return $token->access_token;
         }
 
         return $this->refreshToken($token);
+    }
+
+    /**
+     * @return iterable<GmailOAuthToken>
+     */
+    public function activeTokens(): iterable
+    {
+        return GmailOAuthToken::query()
+            ->where('is_active', true)
+            ->orderBy('email')
+            ->get();
     }
 
     private function refreshToken(GmailOAuthToken $token): string
@@ -90,8 +110,27 @@ final class GmailOAuthService
             'access_token' => $data['access_token'],
             'token_type' => $data['token_type'] ?? 'Bearer',
             'expires_at' => Carbon::now()->addSeconds($data['expires_in'] - 60),
+            'last_used_at' => now(),
         ]);
 
         return $data['access_token'];
+    }
+
+    private function fetchProfileEmail(string $accessToken): string
+    {
+        $response = Http::withToken($accessToken)
+            ->get('https://gmail.googleapis.com/gmail/v1/users/me/profile');
+
+        if ($response->failed()) {
+            throw new RuntimeException('Gmail profile lookup failed: '.$response->body());
+        }
+
+        $email = $response->json('emailAddress');
+
+        if (! is_string($email) || $email === '') {
+            throw new RuntimeException('Google no devolvio el correo autorizado.');
+        }
+
+        return $email;
     }
 }

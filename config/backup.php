@@ -61,7 +61,7 @@ return [
 
             /*
              * The names of the connections to the databases that should be backed up
-             * MySQL, PostgreSQL, SQLite and Mongo databases are supported.
+             * MySQL, PostgreSQL and Mongo databases are supported.
              *
              * The content of the database dump may be customized for each connection
              * by adding a 'dump' key to the connection settings in config/database.php.

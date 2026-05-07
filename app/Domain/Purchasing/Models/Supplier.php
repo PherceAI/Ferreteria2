@@ -19,6 +19,7 @@ final class Supplier extends Model
     protected $fillable = [
         'branch_id',
         'ruc',
+        'ruc_hash',
         'name',
         'email',
         'is_active',

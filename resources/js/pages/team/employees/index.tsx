@@ -1,5 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
-import { Building2, Shield, Users } from 'lucide-react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Building2, Shield, Trash2, UserCheck, Users, UserX } from 'lucide-react';
 import type { FormEventHandler } from 'react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import type { SharedData } from '@/types';
 
 interface Role {
     id: number;
@@ -30,6 +31,7 @@ interface User {
     id: number;
     name: string;
     email: string;
+    is_active: boolean;
     roles: Role[];
     branches: Branch[];
 }
@@ -41,9 +43,11 @@ interface Props {
 }
 
 export default function EmployeesIndex({ users, branches, roles }: Props) {
+    const { auth } = usePage<SharedData>().props;
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
     const branchForm = useForm({
         branch_ids: [] as number[],
@@ -111,6 +115,25 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
         roleForm.setData('role_names', updated);
     };
 
+    const toggleUserStatus = (user: User) => {
+        router.patch(
+            `/equipo/empleados/${user.id}/estado`,
+            { is_active: !user.is_active },
+            { preserveScroll: true },
+        );
+    };
+
+    const deleteUser = () => {
+        if (!userToDelete) {
+            return;
+        }
+
+        router.delete(`/equipo/empleados/${userToDelete.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setUserToDelete(null),
+        });
+    };
+
     return (
         <>
             <Head title="Gestión de Empleados" />
@@ -144,6 +167,17 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                         </span>
                                         <span className="truncate text-sm text-neutral-500 dark:text-zinc-400">
                                             {user.email}
+                                        </span>
+                                        <span
+                                            className={`mt-1 text-xs font-medium ${
+                                                user.is_active
+                                                    ? 'text-emerald-600'
+                                                    : 'text-red-600'
+                                            }`}
+                                        >
+                                            {user.is_active
+                                                ? 'Acceso activo'
+                                                : 'Acceso desactivado'}
                                         </span>
                                     </div>
                                 </div>
@@ -220,6 +254,32 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                     >
                                         <Shield className="mr-2 h-4 w-4" />
                                         Roles
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={auth.user.id === user.id}
+                                        onClick={() => toggleUserStatus(user)}
+                                        className="rounded-lg border-neutral-200 dark:border-zinc-800"
+                                    >
+                                        {user.is_active ? (
+                                            <UserX className="mr-2 h-4 w-4" />
+                                        ) : (
+                                            <UserCheck className="mr-2 h-4 w-4" />
+                                        )}
+                                        {user.is_active
+                                            ? 'Desactivar'
+                                            : 'Activar'}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={auth.user.id === user.id}
+                                        onClick={() => setUserToDelete(user)}
+                                        className="rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:hover:bg-red-950/30"
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Eliminar
                                     </Button>
                                 </div>
                             </CardContent>
@@ -356,6 +416,41 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                             </Button>
                         </DialogFooter>
                     </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={userToDelete !== null}
+                onOpenChange={(open) => !open && setUserToDelete(null)}
+            >
+                <DialogContent className="rounded-xl border-neutral-200 shadow-sm sm:max-w-[425px] dark:border-zinc-800">
+                    <DialogHeader>
+                        <DialogTitle className="text-lg font-medium tracking-[-0.02em]">
+                            Eliminar usuario
+                        </DialogTitle>
+                        <DialogDescription className="text-sm">
+                            Esta accion quitara el acceso de{' '}
+                            {userToDelete?.name} y cerrara sus sesiones
+                            abiertas. No podra volver a entrar al sistema.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setUserToDelete(null)}
+                            className="rounded-lg"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={deleteUser}
+                            className="rounded-lg bg-red-600 text-white hover:bg-red-700"
+                        >
+                            Eliminar usuario
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>

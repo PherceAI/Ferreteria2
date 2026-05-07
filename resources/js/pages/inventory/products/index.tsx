@@ -5,9 +5,9 @@ import {
     Package,
     PackageX,
     Search,
-    Tag,
+    Tags,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -28,8 +28,14 @@ type InventoryProduct = {
     current_stock: number;
     cost: number | null;
     sale_price: number | null;
+    last_purchase_cost: number | null;
+    total_cost: number | null;
+    supplier_name: string | null;
+    category_name: string | null;
+    subcategory_name: string | null;
     min_stock: number;
     inventory_updated_at: string | null;
+    valued_inventory_updated_at: string | null;
 };
 
 type PaginationLink = {
@@ -54,13 +60,23 @@ type InventoryStats = {
     low_stock: number;
     zero_stock: number;
     without_price: number;
+    valued: number;
+    inventory_value: number;
 };
 
 type Props = {
     products: PaginatedProducts;
     stats: InventoryStats;
+    filterOptions: {
+        suppliers: string[];
+        categories: string[];
+        subcategories: string[];
+    };
     filters: {
         search: string;
+        supplier: string;
+        category: string;
+        subcategory: string;
         per_page: number;
     };
 };
@@ -76,6 +92,20 @@ const numberFormatter = new Intl.NumberFormat('es-EC', {
 
 function money(value: number | null): string {
     return value === null ? 'Pendiente' : currencyFormatter.format(value);
+}
+
+function paginationLabel(label: string): string {
+    const clean = label.replace(/&laquo;|&raquo;/g, '').trim();
+
+    if (clean === 'pagination.previous') {
+        return 'Anterior';
+    }
+
+    if (clean === 'pagination.next') {
+        return 'Siguiente';
+    }
+
+    return clean;
 }
 
 function stockStatus(product: InventoryProduct): {
@@ -105,8 +135,38 @@ function stockStatus(product: InventoryProduct): {
     };
 }
 
-export default function ProductsIndex({ products, stats, filters }: Props) {
+export default function ProductsIndex({
+    products,
+    stats,
+    filterOptions,
+    filters,
+}: Props) {
     const [search, setSearch] = useState(filters.search);
+
+    const applyFilters = useCallback((next: Partial<Props['filters']>) => {
+        router.get(
+            '/inventory/products',
+            {
+                search: next.search ?? search,
+                supplier: next.supplier ?? filters.supplier,
+                category: next.category ?? filters.category,
+                subcategory: next.subcategory ?? filters.subcategory,
+                per_page: next.per_page ?? filters.per_page,
+            },
+            {
+                only: ['products', 'stats', 'filters', 'filterOptions'],
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            },
+        );
+    }, [
+        filters.category,
+        filters.per_page,
+        filters.subcategory,
+        filters.supplier,
+        search,
+    ]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -114,30 +174,18 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                 return;
             }
 
-            router.get(
-                '/inventory/products',
-                {
-                    search,
-                    per_page: filters.per_page,
-                },
-                {
-                    only: ['products', 'stats', 'filters'],
-                    preserveScroll: true,
-                    preserveState: true,
-                    replace: true,
-                },
-            );
+            applyFilters({ search });
         }, 350);
 
         return () => window.clearTimeout(timeout);
-    }, [filters.per_page, filters.search, search]);
+    }, [applyFilters, filters.search, search]);
 
     const kpis = useMemo(
         () => [
             {
                 title: 'Productos',
                 value: numberFormatter.format(stats.total),
-                desc: 'en sucursal matriz',
+                desc: 'en sucursal activa',
                 icon: Package,
                 color: 'text-sky-600',
                 bg: 'bg-sky-50 dark:bg-sky-950/30',
@@ -145,7 +193,7 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
             {
                 title: 'Sin stock',
                 value: numberFormatter.format(stats.zero_stock),
-                desc: 'requieren revisión',
+                desc: 'requieren revision',
                 icon: ArchiveX,
                 color: 'text-red-600',
                 bg: 'bg-red-50 dark:bg-red-950/30',
@@ -153,18 +201,18 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
             {
                 title: 'Stock bajo',
                 value: numberFormatter.format(stats.low_stock),
-                desc: 'según mínimo definido',
+                desc: 'segun minimo definido',
                 icon: PackageX,
                 color: 'text-amber-600',
                 bg: 'bg-amber-50 dark:bg-amber-950/30',
             },
             {
-                title: 'Sin precio',
-                value: numberFormatter.format(stats.without_price),
-                desc: 'pendientes de costeo',
-                icon: Tag,
-                color: 'text-violet-600',
-                bg: 'bg-violet-50 dark:bg-violet-950/30',
+                title: 'Valor inventario',
+                value: currencyFormatter.format(stats.inventory_value),
+                desc: `${numberFormatter.format(stats.valued)} productos valorados`,
+                icon: Tags,
+                color: 'text-emerald-600',
+                bg: 'bg-emerald-50 dark:bg-emerald-950/30',
             },
         ],
         [stats],
@@ -176,12 +224,12 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
 
             <div className="flex flex-col gap-6 p-6 font-sans">
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-semibold text-neutral-900 dark:text-zinc-50">
+                    <h1 className="text-2xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                         Productos
                     </h1>
                     <p className="text-sm text-neutral-500 dark:text-zinc-400">
-                        Stock independiente de la sucursal matriz, consultado
-                        por páginas.
+                        Stock y costo valorado por codigo, con filtros por
+                        proveedor, categoria y subcategoria.
                     </p>
                 </div>
 
@@ -204,7 +252,7 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                                 </div>
                             </div>
                             <div>
-                                <div className="text-3xl font-bold text-neutral-900 dark:text-zinc-50">
+                                <div className="text-3xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                                     {kpi.value}
                                 </div>
                                 <div className="mt-1 text-xs text-neutral-500">
@@ -216,13 +264,13 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                 </div>
 
                 <Card className="border border-neutral-200 shadow-none dark:border-zinc-800">
-                    <div className="flex flex-col gap-3 border-b border-neutral-200 px-4 py-3 md:flex-row md:items-center md:justify-between dark:border-zinc-800">
-                        <div className="relative flex w-full max-w-md items-center">
+                    <div className="flex flex-col gap-3 border-b border-neutral-200 px-4 py-4 lg:flex-row lg:items-center dark:border-zinc-800">
+                        <div className="relative flex min-w-64 flex-1 items-center">
                             <Search className="pointer-events-none absolute left-3 h-4 w-4 text-neutral-500 dark:text-zinc-400" />
                             <Input
                                 type="search"
-                                placeholder="Buscar código o producto..."
-                                className="w-full bg-white pl-9 shadow-sm dark:bg-zinc-950"
+                                placeholder="Buscar codigo o producto..."
+                                className="h-11 w-full bg-white pl-9 shadow-sm dark:bg-zinc-950"
                                 value={search}
                                 onChange={(event) =>
                                     setSearch(event.target.value)
@@ -230,47 +278,121 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                             />
                         </div>
 
-                        <Select
-                            value={String(filters.per_page)}
-                            onValueChange={(value) =>
-                                router.get(
-                                    '/inventory/products',
-                                    {
-                                        search: filters.search,
-                                        per_page: value,
-                                    },
-                                    {
-                                        only: ['products', 'stats', 'filters'],
-                                        preserveScroll: true,
-                                        preserveState: true,
-                                        replace: true,
-                                    },
-                                )
-                            }
-                        >
-                            <SelectTrigger className="w-36 bg-white dark:bg-zinc-950">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="25">
-                                    25 por página
-                                </SelectItem>
-                                <SelectItem value="50">
-                                    50 por página
-                                </SelectItem>
-                                <SelectItem value="100">
-                                    100 por página
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-none lg:items-center">
+                            <Select
+                                value={filters.supplier || 'all'}
+                                onValueChange={(value) =>
+                                    applyFilters({
+                                        supplier: value === 'all' ? '' : value,
+                                    })
+                                }
+                            >
+                                <SelectTrigger className="h-11 bg-white sm:min-w-56 lg:w-56 dark:bg-zinc-950">
+                                    <SelectValue placeholder="Proveedor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        Todos los proveedores
+                                    </SelectItem>
+                                    {filterOptions.suppliers.map((supplier) => (
+                                        <SelectItem
+                                            key={supplier}
+                                            value={supplier}
+                                        >
+                                            {supplier}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={filters.category || 'all'}
+                                onValueChange={(value) =>
+                                    applyFilters({
+                                        category: value === 'all' ? '' : value,
+                                        subcategory: '',
+                                    })
+                                }
+                            >
+                                <SelectTrigger className="h-11 bg-white sm:min-w-52 lg:w-52 dark:bg-zinc-950">
+                                    <SelectValue placeholder="Categoria" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        Todas las categorias
+                                    </SelectItem>
+                                    {filterOptions.categories.map(
+                                        (category) => (
+                                            <SelectItem
+                                                key={category}
+                                                value={category}
+                                            >
+                                                {category}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={filters.subcategory || 'all'}
+                                onValueChange={(value) =>
+                                    applyFilters({
+                                        subcategory:
+                                            value === 'all' ? '' : value,
+                                    })
+                                }
+                            >
+                                <SelectTrigger className="h-11 bg-white sm:min-w-56 lg:w-56 dark:bg-zinc-950">
+                                    <SelectValue placeholder="Subcategoria" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">
+                                        Todas las subcategorias
+                                    </SelectItem>
+                                    {filterOptions.subcategories.map(
+                                        (subcategory) => (
+                                            <SelectItem
+                                                key={subcategory}
+                                                value={subcategory}
+                                            >
+                                                {subcategory}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={String(filters.per_page)}
+                                onValueChange={(value) =>
+                                    applyFilters({ per_page: Number(value) })
+                                }
+                            >
+                                <SelectTrigger className="h-11 bg-white sm:min-w-36 lg:w-36 dark:bg-zinc-950">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="25">
+                                        25 por pagina
+                                    </SelectItem>
+                                    <SelectItem value="50">
+                                        50 por pagina
+                                    </SelectItem>
+                                    <SelectItem value="100">
+                                        100 por pagina
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead className="border-b border-neutral-200 bg-neutral-50/80 text-neutral-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400">
                                 <tr>
-                                    <th className="px-4 py-3 font-medium">
-                                        Código
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Codigo
                                     </th>
                                     <th className="min-w-80 px-4 py-3 font-medium">
                                         Producto
@@ -278,22 +400,22 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                                     <th className="px-4 py-3 text-center font-medium">
                                         Unidad
                                     </th>
-                                    <th className="px-4 py-3 text-right font-medium">
+                                    <th className="px-4 py-3 text-center font-medium">
                                         Stock
                                     </th>
-                                    <th className="px-4 py-3 text-right font-medium">
-                                        Mínimo
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Minimo
                                     </th>
-                                    <th className="px-4 py-3 text-right font-medium">
-                                        Costo
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Ult. compra
                                     </th>
-                                    <th className="px-4 py-3 text-right font-medium">
-                                        Venta
+                                    <th className="px-4 py-3 text-center font-medium">
+                                        Costo total
                                     </th>
                                     <th className="px-4 py-3 text-center font-medium">
                                         Estado
                                     </th>
-                                    <th className="px-4 py-3 text-right font-medium">
+                                    <th className="px-4 py-3 text-center font-medium">
                                         Actualizado
                                     </th>
                                 </tr>
@@ -307,30 +429,46 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                                             key={product.id}
                                             className="transition-colors hover:bg-neutral-50/70 dark:hover:bg-zinc-900/50"
                                         >
-                                            <td className="px-4 py-3 font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
+                                            <td className="px-4 py-3 text-center font-medium whitespace-nowrap text-neutral-900 dark:text-zinc-100">
                                                 {product.code}
                                             </td>
                                             <td className="px-4 py-3 text-neutral-700 dark:text-zinc-300">
-                                                {product.name}
+                                                <div>
+                                                    <p>{product.name}</p>
+                                                    {(product.category_name ||
+                                                        product.subcategory_name) && (
+                                                        <p className="mt-1 text-xs text-neutral-400">
+                                                            {[
+                                                                product.category_name,
+                                                                product.subcategory_name,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(' / ')}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 text-center text-neutral-500">
-                                                {product.unit ?? '—'}
+                                                {product.unit ?? '-'}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-neutral-900 dark:text-zinc-100">
+                                            <td className="px-4 py-3 text-center font-semibold text-neutral-900 dark:text-zinc-100">
                                                 {numberFormatter.format(
                                                     product.current_stock,
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-neutral-500">
+                                            <td className="px-4 py-3 text-center text-neutral-500">
                                                 {numberFormatter.format(
                                                     product.min_stock,
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-neutral-500">
-                                                {money(product.cost)}
+                                            <td className="px-4 py-3 text-center text-neutral-500">
+                                                {money(
+                                                    product.last_purchase_cost ??
+                                                        product.cost,
+                                                )}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-neutral-500">
-                                                {money(product.sale_price)}
+                                            <td className="px-4 py-3 text-center font-medium text-neutral-700 dark:text-zinc-300">
+                                                {money(product.total_cost)}
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <Badge
@@ -340,9 +478,10 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                                                     {status.label}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-3 text-right whitespace-nowrap text-neutral-500">
-                                                {product.inventory_updated_at ??
-                                                    '—'}
+                                            <td className="px-4 py-3 text-center whitespace-nowrap text-neutral-500">
+                                                {product.valued_inventory_updated_at ??
+                                                    product.inventory_updated_at ??
+                                                    '-'}
                                             </td>
                                         </tr>
                                     );
@@ -355,7 +494,8 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                         <div className="flex min-h-44 flex-col items-center justify-center gap-2 px-4 py-8 text-center text-neutral-500">
                             <AlertTriangle className="h-5 w-5" />
                             <p className="text-sm">
-                                No hay productos para la búsqueda actual.
+                                No hay productos para la busqueda o filtros
+                                actuales.
                             </p>
                         </div>
                     ) : null}
@@ -378,11 +518,7 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                                     asChild={link.url !== null}
                                 >
                                     {link.url === null ? (
-                                        <span
-                                            dangerouslySetInnerHTML={{
-                                                __html: link.label,
-                                            }}
-                                        />
+                                        <span>{paginationLabel(link.label)}</span>
                                     ) : (
                                         <Link
                                             href={link.url}
@@ -392,11 +528,11 @@ export default function ProductsIndex({ products, stats, filters }: Props) {
                                                 'products',
                                                 'stats',
                                                 'filters',
+                                                'filterOptions',
                                             ]}
-                                            dangerouslySetInnerHTML={{
-                                                __html: link.label,
-                                            }}
-                                        />
+                                        >
+                                            {paginationLabel(link.label)}
+                                        </Link>
                                     )}
                                 </Button>
                             ))}

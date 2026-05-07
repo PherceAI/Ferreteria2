@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Context;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -23,6 +24,16 @@ class ResolveBranchContext
 
         if (! $user instanceof User) {
             return $next($request);
+        }
+
+        if (! $user->is_active) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Esta cuenta esta desactivada.',
+            ]);
         }
 
         $user->loadMissing('branches');

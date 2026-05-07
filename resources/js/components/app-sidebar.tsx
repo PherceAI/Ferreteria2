@@ -25,8 +25,18 @@ import type { NavItem, SharedData } from '@/types';
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
+    const isWarehouseOnly =
+        auth.roles.includes('Bodeguero') && !auth.canViewAllBranches;
 
-    const mainNavItems: NavItem[] = [
+    const mainNavItems: NavItem[] = isWarehouseOnly
+        ? [
+              {
+                  title: 'Recepcion fisica',
+                  href: '/compras/recepcion',
+                  icon: ShoppingCart,
+              },
+          ]
+        : [
         {
             title: 'Dashboard',
             href: dashboard(),
@@ -65,7 +75,7 @@ export function AppSidebar() {
                     href: '/compras',
                 },
                 {
-                    title: 'Recepción y Validación',
+                    title: 'Recepcion fisica',
                     href: '/compras/recepcion',
                 },
             ],
@@ -105,7 +115,14 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link
+                                href={
+                                    isWarehouseOnly
+                                        ? '/compras/recepcion'
+                                        : dashboard()
+                                }
+                                prefetch
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

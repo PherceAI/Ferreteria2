@@ -24,6 +24,7 @@ export type Auth = {
     activeBranch: Branch | null;
     branches: Branch[];
     canViewAllBranches: boolean;
+    roles: string[];
 };
 
 export type SharedData = {
