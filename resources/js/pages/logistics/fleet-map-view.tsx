@@ -165,11 +165,7 @@ function statusLabel(status: Vehicle['status']) {
     return statusStyles[status] ?? statusStyles.stopped;
 }
 
-export default function FleetMapView({
-    vehicles,
-    alerts,
-    refreshedAt,
-}: Props) {
+export default function FleetMapView({ vehicles, alerts, refreshedAt }: Props) {
     const [selectedId, setSelectedId] = useState<number | null>(
         vehicles[0]?.id ?? null,
     );
@@ -311,7 +307,8 @@ export default function FleetMapView({
                                             {vehicle.name}
                                         </p>
                                         <p className="mt-1 text-xs text-neutral-500">
-                                            Reporte {formatAge(vehicle.data_age_sec)}
+                                            Reporte{' '}
+                                            {formatAge(vehicle.data_age_sec)}
                                         </p>
                                     </div>
                                     <span
@@ -412,22 +409,21 @@ export default function FleetMapView({
                             <div className="flex items-center justify-between gap-3">
                                 <span>Ultimo reporte</span>
                                 <span className="font-medium text-neutral-900 dark:text-zinc-50">
-                                    {selectedVehicle.reported_at_label ?? 'Sin dato'}
+                                    {selectedVehicle.reported_at_label ??
+                                        'Sin dato'}
                                 </span>
                             </div>
                             <div className="mt-2 flex items-center justify-between gap-3">
                                 <span>Motor</span>
                                 <span className="font-medium text-neutral-900 dark:text-zinc-50">
-                                    {selectedVehicle.engine_on ? 'Encendido' : 'Apagado'}
+                                    {selectedVehicle.engine_on
+                                        ? 'Encendido'
+                                        : 'Apagado'}
                                 </span>
                             </div>
                         </div>
 
-                        <Button
-                            variant="outline"
-                            className="w-full"
-                            asChild
-                        >
+                        <Button variant="outline" className="w-full" asChild>
                             <a
                                 href={selectedVehicle.map_url}
                                 target="_blank"
@@ -463,7 +459,8 @@ export default function FleetMapView({
                                             className={`h-2 w-2 rounded-full ${
                                                 alert.severity === 'critical'
                                                     ? 'bg-red-500'
-                                                    : alert.severity === 'warning'
+                                                    : alert.severity ===
+                                                        'warning'
                                                       ? 'bg-amber-400'
                                                       : 'bg-blue-400'
                                             }`}
@@ -751,7 +748,6 @@ function LiveFleetMap({
                 attribution: '&copy; OpenStreetMap',
             },
         ).addTo(map);
-
     }, []);
 
     useEffect(() => {
@@ -903,7 +899,7 @@ function LiveFleetMap({
                 className="absolute inset-0 [&_.leaflet-control-attribution]:text-[10px] [&_.leaflet-control-zoom]:border-neutral-200 [&_.leaflet-control-zoom]:shadow-sm [&_.leaflet-tile-pane]:transition-[filter]"
             />
 
-            <div className="pointer-events-none absolute left-4 top-4 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 text-xs text-neutral-600 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:text-zinc-400">
+            <div className="pointer-events-none absolute top-4 left-4 rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 text-xs text-neutral-600 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 dark:text-zinc-400">
                 <span className="font-medium tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                     Riobamba / Chimborazo
                 </span>
@@ -911,7 +907,7 @@ function LiveFleetMap({
             </div>
 
             {refreshedAt && (
-                <div className="pointer-events-none absolute right-4 top-4 hidden rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 text-xs text-neutral-500 shadow-sm backdrop-blur md:block dark:border-zinc-800 dark:bg-zinc-900/95">
+                <div className="pointer-events-none absolute top-4 right-4 hidden rounded-lg border border-neutral-200 bg-white/95 px-3 py-2 text-xs text-neutral-500 shadow-sm backdrop-blur md:block dark:border-zinc-800 dark:bg-zinc-900/95">
                     {refreshedAt}
                 </div>
             )}
@@ -927,7 +923,9 @@ function LiveFleetMap({
 
 function vehicleMarkerHtml(vehicle: Vehicle, selected: boolean) {
     const style = statusLabel(vehicle.status);
-    const border = selected ? 'border-red-600 ring-red-500/30' : 'border-white ring-white/70';
+    const border = selected
+        ? 'border-red-600 ring-red-500/30'
+        : 'border-white ring-white/70';
 
     return `
         <div class="flex h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm ring-4 ${border}">

@@ -143,30 +143,33 @@ export default function ProductsIndex({
 }: Props) {
     const [search, setSearch] = useState(filters.search);
 
-    const applyFilters = useCallback((next: Partial<Props['filters']>) => {
-        router.get(
-            '/inventory/products',
-            {
-                search: next.search ?? search,
-                supplier: next.supplier ?? filters.supplier,
-                category: next.category ?? filters.category,
-                subcategory: next.subcategory ?? filters.subcategory,
-                per_page: next.per_page ?? filters.per_page,
-            },
-            {
-                only: ['products', 'stats', 'filters', 'filterOptions'],
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            },
-        );
-    }, [
-        filters.category,
-        filters.per_page,
-        filters.subcategory,
-        filters.supplier,
-        search,
-    ]);
+    const applyFilters = useCallback(
+        (next: Partial<Props['filters']>) => {
+            router.get(
+                '/inventory/products',
+                {
+                    search: next.search ?? search,
+                    supplier: next.supplier ?? filters.supplier,
+                    category: next.category ?? filters.category,
+                    subcategory: next.subcategory ?? filters.subcategory,
+                    per_page: next.per_page ?? filters.per_page,
+                },
+                {
+                    only: ['products', 'stats', 'filters', 'filterOptions'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                },
+            );
+        },
+        [
+            filters.category,
+            filters.per_page,
+            filters.subcategory,
+            filters.supplier,
+            search,
+        ],
+    );
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -518,7 +521,9 @@ export default function ProductsIndex({
                                     asChild={link.url !== null}
                                 >
                                     {link.url === null ? (
-                                        <span>{paginationLabel(link.label)}</span>
+                                        <span>
+                                            {paginationLabel(link.label)}
+                                        </span>
                                     ) : (
                                         <Link
                                             href={link.url}

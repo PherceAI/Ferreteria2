@@ -17,6 +17,20 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ferreteria_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ferreteria_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     strategy:
       matrix:
         php-version: ['8.4', '8.5']
@@ -29,6 +43,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
+          extensions: pdo_pgsql, pgsql
           tools: composer:v2
           coverage: xdebug
 
@@ -48,6 +63,67 @@ jobs:
 
       - name: Generate Application Key
         run: php artisan key:generate
+
+      - name: Prepare PostgreSQL schemas and roles
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d ferreteria_test <<'SQL'
+          CREATE SCHEMA IF NOT EXISTS tini_raw;
+          CREATE SCHEMA IF NOT EXISTS pherce_intel;
+
+          DO $$
+          BEGIN
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ferreteria_app') THEN
+                  CREATE ROLE ferreteria_app LOGIN PASSWORD 'ferreteria_local';
+              END IF;
+
+              IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'ferreteria_etl') THEN
+                  CREATE ROLE ferreteria_etl LOGIN PASSWORD 'ferreteria_local';
+              END IF;
+          END
+          $$;
+
+          GRANT CONNECT ON DATABASE ferreteria_test TO ferreteria_app;
+          GRANT CONNECT ON DATABASE ferreteria_test TO ferreteria_etl;
+
+          GRANT USAGE, CREATE ON SCHEMA public TO ferreteria_app;
+          GRANT USAGE, CREATE ON SCHEMA pherce_intel TO ferreteria_app;
+          GRANT USAGE ON SCHEMA tini_raw TO ferreteria_app;
+
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ferreteria_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA pherce_intel TO ferreteria_app;
+          GRANT SELECT ON ALL TABLES IN SCHEMA tini_raw TO ferreteria_app;
+
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ferreteria_app;
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA pherce_intel TO ferreteria_app;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA tini_raw TO ferreteria_app;
+
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ferreteria_app;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA pherce_intel
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ferreteria_app;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA tini_raw
+              GRANT SELECT ON TABLES TO ferreteria_app;
+
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public
+              GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ferreteria_app;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA pherce_intel
+              GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ferreteria_app;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA tini_raw
+              GRANT USAGE, SELECT ON SEQUENCES TO ferreteria_app;
+
+          GRANT USAGE, CREATE ON SCHEMA tini_raw TO ferreteria_etl;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA tini_raw TO ferreteria_etl;
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA tini_raw TO ferreteria_etl;
+
+          ALTER DEFAULT PRIVILEGES IN SCHEMA tini_raw
+              GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ferreteria_etl;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA tini_raw
+              GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ferreteria_etl;
+
+          ALTER DATABASE ferreteria_test SET search_path TO public, pherce_intel, tini_raw;
+          SQL
 
       - name: Build Assets
         run: npm run build

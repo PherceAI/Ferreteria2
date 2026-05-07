@@ -145,7 +145,9 @@ export default function PurchasingReceiptIndex({
         items: selectedItems.map((item) => ({
             id: item.id,
             received_qty:
-                item.receivedQty > 0 ? String(item.receivedQty) : String(item.expectedQty),
+                item.receivedQty > 0
+                    ? String(item.receivedQty)
+                    : String(item.expectedQty),
             condition_status: item.conditionStatus,
             discrepancy_notes: item.discrepancyNotes ?? '',
         })),
@@ -170,9 +172,10 @@ export default function PurchasingReceiptIndex({
             })),
         });
         closeForm.setData({
-            action: selectedInvoice?.status === 'received_discrepancy'
-                ? 'supplier_contacted'
-                : 'closed',
+            action:
+                selectedInvoice?.status === 'received_discrepancy'
+                    ? 'supplier_contacted'
+                    : 'closed',
             notes: '',
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,7 +184,9 @@ export default function PurchasingReceiptIndex({
     const selectedItemRows = useMemo(
         () =>
             selectedItems.map((item) => {
-                const formItem = form.data.items.find((row) => row.id === item.id);
+                const formItem = form.data.items.find(
+                    (row) => row.id === item.id,
+                );
 
                 return { item, formItem };
             }),
@@ -229,9 +234,12 @@ export default function PurchasingReceiptIndex({
             return;
         }
 
-        form.post(`/compras/recepcion/${selectedInvoice.confirmation.id}/confirmar`, {
-            preserveScroll: true,
-        });
+        form.post(
+            `/compras/recepcion/${selectedInvoice.confirmation.id}/confirmar`,
+            {
+                preserveScroll: true,
+            },
+        );
     };
 
     const submitClose = () => {
@@ -239,9 +247,12 @@ export default function PurchasingReceiptIndex({
             return;
         }
 
-        closeForm.post(`/compras/recepcion/facturas/${selectedInvoice.id}/cerrar`, {
-            preserveScroll: true,
-        });
+        closeForm.post(
+            `/compras/recepcion/facturas/${selectedInvoice.id}/cerrar`,
+            {
+                preserveScroll: true,
+            },
+        );
     };
 
     if (viewMode === 'warehouse') {
@@ -278,7 +289,9 @@ export default function PurchasingReceiptIndex({
                     </div>
                     <Button
                         variant="outline"
-                        onClick={() => updateFilters({ status: 'received_discrepancy' })}
+                        onClick={() =>
+                            updateFilters({ status: 'received_discrepancy' })
+                        }
                     >
                         <ShieldAlert className="h-4 w-4" />
                         Ver novedades
@@ -329,7 +342,7 @@ export default function PurchasingReceiptIndex({
                             </div>
                             <div className="grid gap-3">
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-neutral-400" />
                                     <Input
                                         className="pl-9"
                                         placeholder="Buscar proveedor o factura"
@@ -337,7 +350,8 @@ export default function PurchasingReceiptIndex({
                                         onKeyDown={(event) => {
                                             if (event.key === 'Enter') {
                                                 updateFilters({
-                                                    search: event.currentTarget.value,
+                                                    search: event.currentTarget
+                                                        .value,
                                                 });
                                             }
                                         }}
@@ -373,8 +387,12 @@ export default function PurchasingReceiptIndex({
                                     <InvoiceButton
                                         key={invoice.id}
                                         invoice={invoice}
-                                        selected={invoice.id === selectedInvoice?.id}
-                                        onClick={() => selectInvoice(invoice.id)}
+                                        selected={
+                                            invoice.id === selectedInvoice?.id
+                                        }
+                                        onClick={() =>
+                                            selectInvoice(invoice.id)
+                                        }
                                     />
                                 ))
                             )}
@@ -385,7 +403,9 @@ export default function PurchasingReceiptIndex({
                         <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
                             <div className="space-y-4">
                                 <InvoiceHeader invoice={selectedInvoice} />
-                                <AdminReceiptStatusPanel invoice={selectedInvoice} />
+                                <AdminReceiptStatusPanel
+                                    invoice={selectedInvoice}
+                                />
                             </div>
 
                             <aside className="space-y-4">
@@ -454,17 +474,22 @@ function WarehouseReceiptView({
     onSubmit,
 }: {
     canReceive: boolean;
-    form: ReturnType<typeof useForm<{
-        notes: string;
-        items: Array<{
-            id: number;
-            received_qty: string;
-            condition_status: ReceiptItem['conditionStatus'];
-            discrepancy_notes: string;
-        }>;
-    }>>;
+    form: ReturnType<
+        typeof useForm<{
+            notes: string;
+            items: Array<{
+                id: number;
+                received_qty: string;
+                condition_status: ReceiptItem['conditionStatus'];
+                discrepancy_notes: string;
+            }>;
+        }>
+    >;
     invoices: InvoiceListItem[];
-    rows: Array<{ item: ReceiptItem; formItem?: (typeof form.data.items)[number] }>;
+    rows: Array<{
+        item: ReceiptItem;
+        formItem?: (typeof form.data.items)[number];
+    }>;
     selectedInvoice: InvoiceDetail | null;
     stats: Props['stats'];
     onClearSelection: () => void;
@@ -477,11 +502,11 @@ function WarehouseReceiptView({
             <Head title="Recepciones pendientes" />
 
             <div className="flex w-full max-w-full flex-col gap-3 overflow-x-hidden p-3 pb-28 font-sans sm:gap-4 sm:p-6">
-                <header className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/20 sm:p-5">
+                <header className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
                     <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
                         Bodega
                     </p>
-                    <h1 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50 sm:text-2xl">
+                    <h1 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-neutral-900 sm:text-2xl dark:text-zinc-50">
                         Recepciones pendientes
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-zinc-400">
@@ -502,7 +527,7 @@ function WarehouseReceiptView({
 
                 <section className="grid min-w-0 gap-3 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-4">
                     <Card
-                        className={`min-w-0 overflow-hidden border-neutral-200 shadow-none dark:border-zinc-800 xl:sticky xl:top-4 xl:order-1 xl:self-start ${
+                        className={`min-w-0 overflow-hidden border-neutral-200 shadow-none xl:sticky xl:top-4 xl:order-1 xl:self-start dark:border-zinc-800 ${
                             selectedInvoice ? 'order-2' : 'order-1'
                         }`}
                     >
@@ -522,8 +547,12 @@ function WarehouseReceiptView({
                                     <WarehouseInvoiceButton
                                         key={invoice.id}
                                         invoice={invoice}
-                                        selected={invoice.id === selectedInvoice?.id}
-                                        onClick={() => onSelectInvoice(invoice.id)}
+                                        selected={
+                                            invoice.id === selectedInvoice?.id
+                                        }
+                                        onClick={() =>
+                                            onSelectInvoice(invoice.id)
+                                        }
                                     />
                                 ))
                             )}
@@ -673,10 +702,13 @@ function WarehouseInvoiceHeader({
                     Volver a pendientes
                 </Button>
                 <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <h2 className="text-base leading-6 font-semibold break-words text-neutral-900 dark:text-zinc-50 sm:text-lg">
+                    <h2 className="text-base leading-6 font-semibold break-words text-neutral-900 sm:text-lg dark:text-zinc-50">
                         {invoice.supplier}
                     </h2>
-                    <StatusDot status={invoice.status} label={invoice.statusLabel} />
+                    <StatusDot
+                        status={invoice.status}
+                        label={invoice.statusLabel}
+                    />
                 </div>
                 <p className="mt-2 text-sm leading-6 text-neutral-500">
                     Factura {invoice.invoiceNumber} · {invoice.itemsCount} items
@@ -741,7 +773,10 @@ function InvoiceHeader({ invoice }: { invoice: InvoiceDetail }) {
                         <h2 className="text-xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
                             {invoice.supplier}
                         </h2>
-                        <StatusDot status={invoice.status} label={invoice.statusLabel} />
+                        <StatusDot
+                            status={invoice.status}
+                            label={invoice.statusLabel}
+                        />
                     </div>
                     <p className="mt-2 text-sm text-neutral-500">
                         Factura {invoice.invoiceNumber} · Emision{' '}
@@ -770,16 +805,21 @@ function ReceptionPanel({
 }: {
     canReceive: boolean;
     invoice: InvoiceDetail;
-    rows: Array<{ item: ReceiptItem; formItem?: (typeof form.data.items)[number] }>;
-    form: ReturnType<typeof useForm<{
-        notes: string;
-        items: Array<{
-            id: number;
-            received_qty: string;
-            condition_status: ReceiptItem['conditionStatus'];
-            discrepancy_notes: string;
-        }>;
-    }>>;
+    rows: Array<{
+        item: ReceiptItem;
+        formItem?: (typeof form.data.items)[number];
+    }>;
+    form: ReturnType<
+        typeof useForm<{
+            notes: string;
+            items: Array<{
+                id: number;
+                received_qty: string;
+                condition_status: ReceiptItem['conditionStatus'];
+                discrepancy_notes: string;
+            }>;
+        }>
+    >;
     onStart: () => void;
     onSubmit: () => void;
 }) {
@@ -823,17 +863,19 @@ function ReceptionPanel({
                     {rows.map(({ item, formItem }, index) => (
                         <div
                             key={item.id}
-                            className="min-w-0 rounded-xl border border-neutral-200 p-3 dark:border-zinc-800 sm:p-4"
+                            className="min-w-0 rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-zinc-800"
                         >
                             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                                 <div className="min-w-0 overflow-hidden">
-                                    <p className="text-sm leading-5 font-medium break-words text-neutral-900 dark:text-zinc-50 sm:text-base">
+                                    <p className="text-sm leading-5 font-medium break-words text-neutral-900 sm:text-base dark:text-zinc-50">
                                         {item.description}
                                     </p>
                                     <p className="mt-1 text-sm leading-5 text-neutral-500">
                                         Codigo {item.code ?? 'sin codigo'} ·
                                         Esperado{' '}
-                                        {quantityFormatter.format(item.expectedQty)}
+                                        {quantityFormatter.format(
+                                            item.expectedQty,
+                                        )}
                                     </p>
                                 </div>
                                 <Button
@@ -843,7 +885,9 @@ function ReceptionPanel({
                                     className="h-11 w-full shrink-0 sm:w-auto"
                                     onClick={() =>
                                         updateItem(index, {
-                                            received_qty: String(item.expectedQty),
+                                            received_qty: String(
+                                                item.expectedQty,
+                                            ),
                                             condition_status: 'ok',
                                             discrepancy_notes: '',
                                         })
@@ -868,7 +912,8 @@ function ReceptionPanel({
                                         value={formItem?.received_qty ?? ''}
                                         onChange={(event) =>
                                             updateItem(index, {
-                                                received_qty: event.target.value,
+                                                received_qty:
+                                                    event.target.value,
                                             })
                                         }
                                     />
@@ -879,7 +924,9 @@ function ReceptionPanel({
                                     </Label>
                                     <Select
                                         disabled={!canReceive}
-                                        value={formItem?.condition_status ?? 'ok'}
+                                        value={
+                                            formItem?.condition_status ?? 'ok'
+                                        }
                                         onValueChange={(value) =>
                                             updateItem(index, {
                                                 condition_status:
@@ -891,16 +938,16 @@ function ReceptionPanel({
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {Object.entries(conditionLabels).map(
-                                                ([value, label]) => (
-                                                    <SelectItem
-                                                        key={value}
-                                                        value={value}
-                                                    >
-                                                        {label}
-                                                    </SelectItem>
-                                                ),
-                                            )}
+                                            {Object.entries(
+                                                conditionLabels,
+                                            ).map(([value, label]) => (
+                                                <SelectItem
+                                                    key={value}
+                                                    value={value}
+                                                >
+                                                    {label}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -912,10 +959,13 @@ function ReceptionPanel({
                                         className="h-11"
                                         disabled={!canReceive}
                                         placeholder="Ej. faltaron 2 cajas"
-                                        value={formItem?.discrepancy_notes ?? ''}
+                                        value={
+                                            formItem?.discrepancy_notes ?? ''
+                                        }
                                         onChange={(event) =>
                                             updateItem(index, {
-                                                discrepancy_notes: event.target.value,
+                                                discrepancy_notes:
+                                                    event.target.value,
                                             })
                                         }
                                     />
@@ -930,10 +980,12 @@ function ReceptionPanel({
                         Nota general de recepcion
                     </Label>
                     <textarea
-                        className="min-h-24 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-neutral-400 dark:border-zinc-800 dark:bg-zinc-950"
+                        className="min-h-24 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-neutral-400 dark:border-zinc-800 dark:bg-zinc-950"
                         disabled={!canReceive}
                         value={form.data.notes}
-                        onChange={(event) => form.setData('notes', event.target.value)}
+                        onChange={(event) =>
+                            form.setData('notes', event.target.value)
+                        }
                     />
                 </div>
 
@@ -1000,7 +1052,9 @@ function AdminReceiptStatusPanel({ invoice }: { invoice: InvoiceDetail }) {
                                 <th className="px-4 py-3 text-right font-medium">
                                     Recibido
                                 </th>
-                                <th className="px-4 py-3 font-medium">Estado</th>
+                                <th className="px-4 py-3 font-medium">
+                                    Estado
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-200 dark:divide-zinc-800">
@@ -1018,11 +1072,15 @@ function AdminReceiptStatusPanel({ invoice }: { invoice: InvoiceDetail }) {
                                         </p>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {quantityFormatter.format(item.expectedQty)}
+                                        {quantityFormatter.format(
+                                            item.expectedQty,
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         {item.receivedQty > 0
-                                            ? quantityFormatter.format(item.receivedQty)
+                                            ? quantityFormatter.format(
+                                                  item.receivedQty,
+                                              )
                                             : 'Pendiente'}
                                     </td>
                                     <td className="px-4 py-3">
@@ -1035,7 +1093,9 @@ function AdminReceiptStatusPanel({ invoice }: { invoice: InvoiceDetail }) {
                                         >
                                             {receptionIsPending
                                                 ? 'Pendiente'
-                                                : conditionLabels[item.conditionStatus]}
+                                                : conditionLabels[
+                                                      item.conditionStatus
+                                                  ]}
                                         </span>
                                         {item.discrepancyNotes && (
                                             <p className="mt-1 text-xs text-neutral-500">
@@ -1139,10 +1199,12 @@ function ReviewPanel({
                 <div className="space-y-2">
                     <Label className="text-xs text-neutral-500">Nota</Label>
                     <textarea
-                        className="min-h-24 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition-colors focus:border-neutral-400 dark:border-zinc-800 dark:bg-zinc-950"
+                        className="min-h-24 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm transition-colors outline-none focus:border-neutral-400 dark:border-zinc-800 dark:bg-zinc-950"
                         disabled={!canClose}
                         value={form.data.notes}
-                        onChange={(event) => form.setData('notes', event.target.value)}
+                        onChange={(event) =>
+                            form.setData('notes', event.target.value)
+                        }
                     />
                 </div>
                 <Button

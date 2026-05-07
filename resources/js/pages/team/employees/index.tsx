@@ -1,5 +1,12 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { Building2, Shield, Trash2, UserCheck, Users, UserX } from 'lucide-react';
+import {
+    Building2,
+    Shield,
+    Trash2,
+    UserCheck,
+    Users,
+    UserX,
+} from 'lucide-react';
 import type { FormEventHandler } from 'react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';

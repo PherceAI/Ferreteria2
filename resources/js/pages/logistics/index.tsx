@@ -369,7 +369,9 @@ export default function LogisticsIndex() {
                             className="border-amber-200 text-amber-700 hover:bg-amber-50"
                         >
                             <Bell className="h-4 w-4" />
-                            {alertLoading ? 'Enviando...' : 'Probar Alertas GPS'}
+                            {alertLoading
+                                ? 'Enviando...'
+                                : 'Probar Alertas GPS'}
                         </Button>
                         <Button
                             onClick={handleRefresh}
@@ -436,14 +438,20 @@ export default function LogisticsIndex() {
                                 value={kpis.critical_alerts}
                                 detail="Atender antes de despacho"
                                 icon={ShieldAlert}
-                                tone={kpis.critical_alerts > 0 ? 'red' : 'neutral'}
+                                tone={
+                                    kpis.critical_alerts > 0 ? 'red' : 'neutral'
+                                }
                             />
                             <KpiCard
                                 title="Riesgo electrico"
                                 value={kpis.electrical_risks}
                                 detail="GPS/bateria a revisar"
                                 icon={BatteryWarning}
-                                tone={kpis.electrical_risks > 0 ? 'amber' : 'neutral'}
+                                tone={
+                                    kpis.electrical_risks > 0
+                                        ? 'amber'
+                                        : 'neutral'
+                                }
                             />
                             <KpiCard
                                 title="En movimiento"
@@ -457,7 +465,11 @@ export default function LogisticsIndex() {
                                 value={kpis.maintenance_due}
                                 detail="Cerca de hito preventivo"
                                 icon={Wrench}
-                                tone={kpis.maintenance_due > 0 ? 'amber' : 'neutral'}
+                                tone={
+                                    kpis.maintenance_due > 0
+                                        ? 'amber'
+                                        : 'neutral'
+                                }
                             />
                             <KpiCard
                                 title="Kilometraje flota"
@@ -479,11 +491,13 @@ export default function LogisticsIndex() {
                                     {recommendations.length === 0 ? (
                                         <div className="flex items-center gap-3 rounded-lg border border-neutral-200 p-4 text-sm text-neutral-500 dark:border-zinc-800">
                                             <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                            Sin acciones urgentes con la ultima telemetria.
+                                            Sin acciones urgentes con la ultima
+                                            telemetria.
                                         </div>
                                     ) : (
                                         recommendations.map((item) => {
-                                            const style = severityStyles[item.type];
+                                            const style =
+                                                severityStyles[item.type];
 
                                             return (
                                                 <div
@@ -524,10 +538,17 @@ export default function LogisticsIndex() {
                                                 Mas usada 7 dias
                                             </p>
                                             <p className="mt-2 truncate text-sm font-medium tracking-[-0.02em]">
-                                                {history?.most_used?.vehicle_name ?? 'Sin historial'}
+                                                {history?.most_used
+                                                    ?.vehicle_name ??
+                                                    'Sin historial'}
                                             </p>
                                             <p className="text-xs text-neutral-500">
-                                                {formatNumber(history?.most_used?.km_7d ?? 0, 1)} km
+                                                {formatNumber(
+                                                    history?.most_used?.km_7d ??
+                                                        0,
+                                                    1,
+                                                )}{' '}
+                                                km
                                             </p>
                                         </div>
                                         <div className="rounded-lg border border-neutral-200 p-4 dark:border-zinc-800">
@@ -535,27 +556,40 @@ export default function LogisticsIndex() {
                                                 Menor uso 7 dias
                                             </p>
                                             <p className="mt-2 truncate text-sm font-medium tracking-[-0.02em]">
-                                                {history?.least_used?.vehicle_name ?? 'Sin historial'}
+                                                {history?.least_used
+                                                    ?.vehicle_name ??
+                                                    'Sin historial'}
                                             </p>
                                             <p className="text-xs text-neutral-500">
-                                                {formatNumber(history?.least_used?.km_7d ?? 0, 1)} km
+                                                {formatNumber(
+                                                    history?.least_used
+                                                        ?.km_7d ?? 0,
+                                                    1,
+                                                )}{' '}
+                                                km
                                             </p>
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        {history?.activity_7d.slice(0, 5).map((item) => (
-                                            <div
-                                                key={item.vehicle_name}
-                                                className="flex items-center justify-between gap-3 text-sm"
-                                            >
-                                                <span className="truncate text-neutral-600 dark:text-zinc-400">
-                                                    {item.vehicle_name}
-                                                </span>
-                                                <span className="font-medium text-neutral-900 dark:text-zinc-50">
-                                                    {formatNumber(item.km_7d, 1)} km
-                                                </span>
-                                            </div>
-                                        ))}
+                                        {history?.activity_7d
+                                            .slice(0, 5)
+                                            .map((item) => (
+                                                <div
+                                                    key={item.vehicle_name}
+                                                    className="flex items-center justify-between gap-3 text-sm"
+                                                >
+                                                    <span className="truncate text-neutral-600 dark:text-zinc-400">
+                                                        {item.vehicle_name}
+                                                    </span>
+                                                    <span className="font-medium text-neutral-900 dark:text-zinc-50">
+                                                        {formatNumber(
+                                                            item.km_7d,
+                                                            1,
+                                                        )}{' '}
+                                                        km
+                                                    </span>
+                                                </div>
+                                            ))}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -576,7 +610,8 @@ export default function LogisticsIndex() {
                                 </div>
                                 <div className="grid gap-2">
                                     {topAlerts.map((alert, index) => {
-                                        const style = severityStyles[alert.severity];
+                                        const style =
+                                            severityStyles[alert.severity];
 
                                         return (
                                             <div
@@ -590,7 +625,9 @@ export default function LogisticsIndex() {
                                                                 className={`h-2 w-2 rounded-full ${style.dot}`}
                                                             />
                                                             <p className="text-sm font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
-                                                                {alert.vehicleName}
+                                                                {
+                                                                    alert.vehicleName
+                                                                }
                                                             </p>
                                                             <span
                                                                 className={`text-xs ${style.text}`}
@@ -660,35 +697,57 @@ export default function LogisticsIndex() {
                                                                 {vehicle.name}
                                                             </p>
                                                             <p className="text-xs text-neutral-500">
-                                                                Reporte {formatAge(vehicle.data_age_sec)}
+                                                                Reporte{' '}
+                                                                {formatAge(
+                                                                    vehicle.data_age_sec,
+                                                                )}
                                                             </p>
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <StatusLabel status={vehicle.status} />
+                                                            <StatusLabel
+                                                                status={
+                                                                    vehicle.status
+                                                                }
+                                                            />
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <p className="font-medium text-neutral-900 dark:text-zinc-50">
-                                                                {vehicle.battery_vehicle}
+                                                                {
+                                                                    vehicle.battery_vehicle
+                                                                }
                                                             </p>
                                                             <p className="text-xs text-neutral-500">
-                                                                GPS {vehicle.gps_battery_percent ?? '-'}%
+                                                                GPS{' '}
+                                                                {vehicle.gps_battery_percent ??
+                                                                    '-'}
+                                                                %
                                                             </p>
                                                         </td>
                                                         <td className="px-4 py-3">
                                                             <span className="inline-flex items-center gap-1 text-neutral-600 dark:text-zinc-400">
                                                                 <Signal className="h-3 w-3" />
-                                                                {vehicle.satellites}
+                                                                {
+                                                                    vehicle.satellites
+                                                                }
                                                             </span>
                                                         </td>
                                                         <td className="px-4 py-3 text-neutral-500">
-                                                            {vehicle.stop_duration}
+                                                            {
+                                                                vehicle.stop_duration
+                                                            }
                                                         </td>
                                                         <td className="px-4 py-3 text-neutral-500">
-                                                            {formatNumber(vehicle.total_distance_km, 1)} km
+                                                            {formatNumber(
+                                                                vehicle.total_distance_km,
+                                                                1,
+                                                            )}{' '}
+                                                            km
                                                         </td>
                                                         <td className="px-4 py-3 text-right">
                                                             <a
-                                                                href={vehicle.map_url}
+                                                                href={
+                                                                    vehicle.map_url
+                                                                }
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
@@ -715,10 +774,16 @@ export default function LogisticsIndex() {
                                                             {vehicle.name}
                                                         </p>
                                                         <p className="text-xs text-neutral-500">
-                                                            {formatNumber(vehicle.total_distance_km, 1)} km
+                                                            {formatNumber(
+                                                                vehicle.total_distance_km,
+                                                                1,
+                                                            )}{' '}
+                                                            km
                                                         </p>
                                                     </div>
-                                                    <StatusLabel status={vehicle.status} />
+                                                    <StatusLabel
+                                                        status={vehicle.status}
+                                                    />
                                                 </div>
                                                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-neutral-600 dark:text-zinc-400">
                                                     <span className="flex items-center gap-1">
@@ -731,11 +796,14 @@ export default function LogisticsIndex() {
                                                     </span>
                                                     <span className="flex items-center gap-1">
                                                         <BatteryWarning className="h-3 w-3" />
-                                                        {vehicle.battery_vehicle}
+                                                        {
+                                                            vehicle.battery_vehicle
+                                                        }
                                                     </span>
                                                     <span className="flex items-center gap-1">
                                                         <Signal className="h-3 w-3" />
-                                                        {vehicle.satellites} sat.
+                                                        {vehicle.satellites}{' '}
+                                                        sat.
                                                     </span>
                                                 </div>
                                             </div>
@@ -766,14 +834,23 @@ export default function LogisticsIndex() {
                                                         {item.vehicle_name}
                                                     </p>
                                                     <p className="mt-1 text-xs text-neutral-500">
-                                                        Actual {formatNumber(item.current_km)} km · siguiente {formatNumber(item.next_service_km)} km
+                                                        Actual{' '}
+                                                        {formatNumber(
+                                                            item.current_km,
+                                                        )}{' '}
+                                                        km · siguiente{' '}
+                                                        {formatNumber(
+                                                            item.next_service_km,
+                                                        )}{' '}
+                                                        km
                                                     </p>
                                                 </div>
                                                 <span
                                                     className={`text-xs ${
                                                         item.status === 'ok'
                                                             ? 'text-green-600'
-                                                            : item.status === 'soon'
+                                                            : item.status ===
+                                                                'soon'
                                                               ? 'text-amber-600'
                                                               : 'text-red-600'
                                                     }`}

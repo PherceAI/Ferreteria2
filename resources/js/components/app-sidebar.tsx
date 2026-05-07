@@ -37,62 +37,62 @@ export function AppSidebar() {
               },
           ]
         : [
-        {
-            title: 'Dashboard',
-            href: dashboard(),
-            icon: LayoutGrid,
-        },
-        {
-            title: 'Contabilidad',
-            href: '#',
-            icon: BookOpen,
-            disabled: true,
-        },
-        {
-            title: 'Inventario',
-            href: '#',
-            icon: Package,
-            disabled: false,
-            items: [
-                {
-                    title: 'Productos',
-                    href: '/inventory/products',
-                },
-                {
-                    title: 'Traspasos',
-                    href: '/inventory/transfers',
-                },
-            ],
-        },
-        {
-            title: 'Compras',
-            href: '#',
-            icon: ShoppingCart,
-            disabled: false,
-            items: [
-                {
-                    title: 'Sugerencias',
-                    href: '/compras',
-                },
-                {
-                    title: 'Recepcion fisica',
-                    href: '/compras/recepcion',
-                },
-            ],
-        },
-        {
-            title: 'Logística',
-            href: '#',
-            icon: Truck,
-            disabled: false,
-            items: [
-                {
-                    title: 'Flota de Vehículos',
-                    href: '/logistica',
-                },
-            ],
-        },
-    ];
+              {
+                  title: 'Dashboard',
+                  href: dashboard(),
+                  icon: LayoutGrid,
+              },
+              {
+                  title: 'Contabilidad',
+                  href: '#',
+                  icon: BookOpen,
+                  disabled: true,
+              },
+              {
+                  title: 'Inventario',
+                  href: '#',
+                  icon: Package,
+                  disabled: false,
+                  items: [
+                      {
+                          title: 'Productos',
+                          href: '/inventory/products',
+                      },
+                      {
+                          title: 'Traspasos',
+                          href: '/inventory/transfers',
+                      },
+                  ],
+              },
+              {
+                  title: 'Compras',
+                  href: '#',
+                  icon: ShoppingCart,
+                  disabled: false,
+                  items: [
+                      {
+                          title: 'Sugerencias',
+                          href: '/compras',
+                      },
+                      {
+                          title: 'Recepcion fisica',
+                          href: '/compras/recepcion',
+                      },
+                  ],
+              },
+              {
+                  title: 'Logística',
+                  href: '#',
+                  icon: Truck,
+                  disabled: false,
+                  items: [
+                      {
+                          title: 'Flota de Vehículos',
+                          href: '/logistica',
+                      },
+                  ],
+              },
+          ];
 
     if (auth.canViewAllBranches) {
         mainNavItems.push({
