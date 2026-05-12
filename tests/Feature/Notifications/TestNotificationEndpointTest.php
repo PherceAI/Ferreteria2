@@ -8,6 +8,7 @@ use App\Domain\Notifications\Notifications\GenericWebPushNotification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class TestNotificationEndpointTest extends TestCase
@@ -18,6 +19,7 @@ class TestNotificationEndpointTest extends TestCase
     {
         /** @var User $user */
         $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web']));
         $user->updatePushSubscription(
             endpoint: 'https://fcm.googleapis.com/fcm/send/fake',
             key: 'fake-p256dh',
@@ -56,10 +58,22 @@ class TestNotificationEndpointTest extends TestCase
     {
         /** @var User $user */
         $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web']));
 
         $response = $this->actingAs($user)->postJson(route('push.test'));
 
         $response->assertStatus(422);
         $response->assertJson(['sent' => false]);
+    }
+
+    public function test_demo_endpoint_requires_internal_role(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $user->assignRole(Role::firstOrCreate(['name' => 'Vendedor', 'guard_name' => 'web']));
+
+        $this->actingAs($user)
+            ->postJson(route('push.test'))
+            ->assertForbidden();
     }
 }

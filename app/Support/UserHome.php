@@ -8,7 +8,7 @@ class UserHome
 {
     public static function pathFor(User $user): string
     {
-        if ($user->hasRole('Bodeguero') && ! $user->hasGlobalBranchAccess()) {
+        if ($user->hasAnyRole(config('internal.warehouse_roles', [])) && ! $user->hasGlobalBranchAccess()) {
             return route('purchasing.receipt.index', absolute: false);
         }
 

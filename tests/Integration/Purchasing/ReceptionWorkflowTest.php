@@ -45,6 +45,39 @@ final class ReceptionWorkflowTest extends TestCase
         $this->assertNotNull($invoice->supplier->ruc_hash);
     }
 
+    public function test_reception_items_and_once_events_are_idempotent(): void
+    {
+        $branch = $this->branch();
+        $invoice = app(PurchaseInvoiceService::class)->createFromGmailMessage($this->invoiceData(), $branch->id);
+        $confirmation = $invoice->receptionConfirmation()->with('items')->firstOrFail();
+        $workflow = app(ReceptionWorkflowService::class);
+
+        $workflow->ensureReceptionItems($confirmation);
+        $workflow->ensureReceptionItems($confirmation->refresh());
+
+        $this->assertSame(2, $confirmation->items()->count());
+
+        $created = $workflow->recordEvent(
+            invoice: $invoice,
+            confirmation: $confirmation,
+            type: 'idempotency_check',
+            title: 'Evento idempotente',
+        );
+        $duplicate = $workflow->recordEvent(
+            invoice: $invoice,
+            confirmation: $confirmation,
+            type: 'idempotency_check',
+            title: 'Evento idempotente',
+        );
+
+        $this->assertInstanceOf(PurchaseInvoiceEvent::class, $created);
+        $this->assertNull($duplicate);
+        $this->assertSame(1, PurchaseInvoiceEvent::withoutBranchScope()
+            ->where('invoice_id', $invoice->id)
+            ->where('type', 'idempotency_check')
+            ->count());
+    }
+
     public function test_confirming_reception_sets_ok_or_discrepancy_status(): void
     {
         $branch = $this->branch();

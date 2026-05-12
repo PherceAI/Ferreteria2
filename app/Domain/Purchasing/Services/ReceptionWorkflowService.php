@@ -8,6 +8,7 @@ use App\Domain\Purchasing\Models\PurchaseInvoice;
 use App\Domain\Purchasing\Models\PurchaseInvoiceEvent;
 use App\Domain\Purchasing\Models\ReceptionConfirmation;
 use App\Domain\Purchasing\Models\ReceptionConfirmationItem;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,6 +25,12 @@ final class ReceptionWorkflowService
         }
 
         return DB::transaction(function () use ($confirmation, $items, $userId, $notes): ReceptionConfirmation {
+            $confirmation = $this->lockConfirmation($confirmation);
+
+            if (in_array($confirmation->status, ['confirmed', 'discrepancy'], true)) {
+                return $confirmation->load(['invoice.supplier', 'items', 'events']);
+            }
+
             $confirmation->loadMissing('invoice', 'items');
             $itemsById = collect($items)->keyBy('id');
             $submittedItemIds = collect($items)->pluck('id')->map(fn ($id) => (int) $id);
@@ -111,6 +118,12 @@ final class ReceptionWorkflowService
         }
 
         return DB::transaction(function () use ($confirmation, $userId): ReceptionConfirmation {
+            $confirmation = $this->lockConfirmation($confirmation);
+
+            if ($confirmation->status !== 'pending') {
+                return $confirmation->load(['invoice.supplier', 'items', 'events']);
+            }
+
             $confirmation->loadMissing('invoice');
             $confirmation->update(['status' => 'receiving']);
             $confirmation->invoice->update(['status' => 'receiving']);
@@ -141,6 +154,18 @@ final class ReceptionWorkflowService
         }
 
         return DB::transaction(function () use ($invoice, $userId, $action, $notes): PurchaseInvoice {
+            $invoice = $this->lockInvoice($invoice);
+
+            if ($invoice->status === 'closed') {
+                return $invoice->load(['supplier', 'items', 'receptionConfirmation.items', 'events.user']);
+            }
+
+            if (! in_array($invoice->status, ['received_ok', 'received_discrepancy'], true)) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'La factura debe tener recepcion fisica confirmada antes de cerrar el expediente.',
+                ]);
+            }
+
             $invoice->loadMissing('receptionConfirmation');
             $invoice->update(['status' => 'closed']);
 
@@ -163,21 +188,43 @@ final class ReceptionWorkflowService
         $confirmation->loadMissing('invoice.items');
 
         foreach ($confirmation->invoice->items as $invoiceItem) {
-            ReceptionConfirmationItem::firstOrCreate(
-                [
-                    'confirmation_id' => $confirmation->id,
-                    'purchase_invoice_item_id' => $invoiceItem->id,
-                ],
-                [
-                    'tini_product_id' => $invoiceItem->code,
-                    'description' => $invoiceItem->description,
-                    'expected_qty' => $invoiceItem->quantity,
-                    'received_qty' => 0,
-                    'condition_status' => 'ok',
-                    'has_discrepancy' => false,
-                ],
-            );
+            try {
+                ReceptionConfirmationItem::firstOrCreate(
+                    [
+                        'confirmation_id' => $confirmation->id,
+                        'purchase_invoice_item_id' => $invoiceItem->id,
+                    ],
+                    [
+                        'tini_product_id' => $invoiceItem->code,
+                        'description' => $invoiceItem->description,
+                        'expected_qty' => $invoiceItem->quantity,
+                        'received_qty' => 0,
+                        'condition_status' => 'ok',
+                        'has_discrepancy' => false,
+                    ],
+                );
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+            }
         }
+    }
+
+    private function lockConfirmation(ReceptionConfirmation $confirmation): ReceptionConfirmation
+    {
+        return ReceptionConfirmation::withoutBranchScope()
+            ->whereKey($confirmation->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function lockInvoice(PurchaseInvoice $invoice): PurchaseInvoice
+    {
+        return PurchaseInvoice::withoutBranchScope()
+            ->whereKey($invoice->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
     }
 
     public function recordEvent(
@@ -190,23 +237,41 @@ final class ReceptionWorkflowService
         array $metadata = [],
         bool $once = true,
     ): ?PurchaseInvoiceEvent {
-        if ($once && PurchaseInvoiceEvent::withoutBranchScope()
-            ->where('invoice_id', $invoice->id)
-            ->where('type', $type)
-            ->exists()) {
-            return null;
-        }
-
-        return PurchaseInvoiceEvent::create([
-            'branch_id' => $invoice->branch_id,
+        $attributes = [
             'invoice_id' => $invoice->id,
+            'type' => $type,
+        ];
+        $values = [
+            'branch_id' => $invoice->branch_id,
             'reception_confirmation_id' => $confirmation?->id,
             'user_id' => $userId,
-            'type' => $type,
             'title' => $title,
             'body' => $body,
             'metadata' => $metadata === [] ? null : $metadata,
-        ]);
+        ];
+
+        if (! $once) {
+            return PurchaseInvoiceEvent::create($attributes + $values);
+        }
+
+        try {
+            $event = PurchaseInvoiceEvent::withoutBranchScope()->firstOrCreate($attributes, $values);
+        } catch (QueryException $exception) {
+            if (! $this->isUniqueConstraintViolation($exception)) {
+                throw $exception;
+            }
+
+            $event = PurchaseInvoiceEvent::withoutBranchScope()
+                ->where($attributes)
+                ->firstOrFail();
+        }
+
+        return $event->wasRecentlyCreated ? $event : null;
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        return $exception->getCode() === '23505';
     }
 
     private function normalizeConditionStatus(string $status): string

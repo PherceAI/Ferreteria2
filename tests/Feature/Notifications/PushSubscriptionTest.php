@@ -34,6 +34,22 @@ class PushSubscriptionTest extends TestCase
         ]);
     }
 
+    public function test_push_subscription_endpoint_must_be_https(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson(route('push.subscriptions.store'), [
+                'endpoint' => 'http://127.0.0.1/internal',
+                'key' => 'fake-p256dh-key',
+                'token' => 'fake-auth-token',
+                'contentEncoding' => 'aesgcm',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('endpoint');
+    }
+
     public function test_user_can_unsubscribe_from_push_notifications(): void
     {
         /** @var User $user */

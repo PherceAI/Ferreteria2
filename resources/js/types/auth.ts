@@ -13,7 +13,10 @@ export type User = {
 export type Branch = {
     id: number;
     name: string;
+    display_name?: string;
     code: string;
+    warehouse_name?: string | null;
+    warehouse_code?: string | null;
     city: string | null;
     is_headquarters: boolean;
     is_active: boolean;
@@ -27,9 +30,21 @@ export type Auth = {
     roles: string[];
 };
 
+export type OperationalAlert = {
+    id: string;
+    type: 'critical' | 'high' | 'medium' | 'info';
+    title: string;
+    message: string;
+    timestamp: string;
+    href: string;
+    actionText: string;
+    isRead: boolean;
+};
+
 export type SharedData = {
     name: string;
     auth: Auth;
+    operationalAlerts: OperationalAlert[];
     sidebarOpen: boolean;
     vapidPublicKey: VapidPublicKey;
     [key: string]: unknown;

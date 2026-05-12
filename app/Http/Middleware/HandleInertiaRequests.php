@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Domain\Dashboard\Services\OperationalAlertService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,16 +36,21 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
-                'user' => $request->user(),
-                'activeBranch' => $request->user()?->activeBranch,
-                'branches' => $request->user()?->branches()->orderByDesc('is_headquarters')->orderBy('name')->get(),
-                'canViewAllBranches' => $request->user()?->hasGlobalBranchAccess() ?? false,
-                'roles' => $request->user()?->roles()->pluck('name')->values() ?? [],
+                'user' => $user,
+                'activeBranch' => $user?->activeBranch,
+                'branches' => $user?->branches()->orderByDesc('is_headquarters')->orderBy('name')->get(),
+                'canViewAllBranches' => $user?->hasGlobalBranchAccess() ?? false,
+                'roles' => $user?->roles()->pluck('name')->values() ?? [],
             ],
+            'operationalAlerts' => fn () => $user
+                ? app(OperationalAlertService::class)->forUser($user)
+                : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             // Clave pública VAPID para que el frontend pueda suscribirse al push
             // Es pública por diseño (el browser la necesita para cifrar la suscripción)

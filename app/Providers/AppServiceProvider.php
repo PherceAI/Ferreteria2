@@ -54,7 +54,7 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configureInternalAccess(): void
     {
-        Gate::define('viewPulse', function (User $user) {
+        Gate::define('viewPulse', function (?User $user) {
             return $this->canAccessObservability($user);
         });
 

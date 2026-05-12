@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Inventory\Services;
 
 use App\Domain\Inventory\Models\InventoryProduct;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +14,7 @@ use SplFileObject;
 final class ValuedInventoryImportService
 {
     /**
-     * @return array{matched:int, missing:int, skipped:int}
+     * @return array{matched:int, created:int, missing:int, skipped:int}
      */
     public function importCsv(string $path, int $branchId, string $source): array
     {
@@ -21,9 +22,11 @@ final class ValuedInventoryImportService
         $file->setFlags(SplFileObject::READ_CSV | SplFileObject::SKIP_EMPTY);
 
         $matched = 0;
+        $created = 0;
         $missing = 0;
         $skipped = 0;
         $chunk = [];
+        $createChunk = [];
         $existingCodes = InventoryProduct::query()
             ->forBranch($branchId)
             ->pluck('code')
@@ -41,8 +44,9 @@ final class ValuedInventoryImportService
                 continue;
             }
 
-            $row = array_pad($row, 8, '');
+            $row = array_pad($row, 9, '');
             $first = trim((string) $row[0]);
+            $productName = $this->cleanText($row[1] ?? null);
 
             if ($rowIndex === 0 && str_contains(mb_strtolower($first), 'codigo')) {
                 continue;
@@ -62,28 +66,45 @@ final class ValuedInventoryImportService
                 continue;
             }
 
-            if (! preg_match('/^\d+$/', $first)) {
+            if ($first === '' || $productName === '') {
                 $skipped++;
 
                 continue;
             }
 
             if (! isset($existingCodes[$first])) {
-                $missing++;
+                $createChunk[] = $this->newProductRow(
+                    row: $row,
+                    branchId: $branchId,
+                    source: $source,
+                    sourceRow: $rowIndex + 1,
+                    categoryCode: $categoryCode,
+                    categoryName: $categoryName,
+                    subcategoryCode: $subcategoryCode,
+                    subcategoryName: $subcategoryName,
+                    now: $now,
+                );
+                $existingCodes[$first] = true;
+
+                if (count($createChunk) === 500) {
+                    $created += $this->createMissing($createChunk);
+                    $createChunk = [];
+                }
 
                 continue;
             }
 
-            $supplier = $this->parseSupplier((string) $row[6]);
+            $columns = $this->valuedColumns($row);
+            $supplier = $this->parseSupplier((string) $row[$columns['supplier']]);
 
             $chunk[] = [
                 'branch_id' => $branchId,
                 'code' => $first,
-                'unit' => $this->cleanText($row[2] ?? null) ?: null,
-                'current_stock' => $this->parseDecimal($row[3] ?? null),
-                'cost' => $this->parseDecimal($row[4] ?? null),
-                'last_purchase_cost' => $this->parseDecimal($row[4] ?? null),
-                'total_cost' => $this->parseDecimal($row[5] ?? null),
+                'unit' => $this->cleanText($row[$columns['unit']] ?? null) ?: null,
+                'current_stock' => $this->parseDecimal($row[$columns['stock']] ?? null),
+                'cost' => $this->parseDecimal($row[$columns['cost']] ?? null),
+                'last_purchase_cost' => $this->parseDecimal($row[$columns['last_purchase']] ?? null),
+                'total_cost' => $this->parseDecimal($row[$columns['total_cost']] ?? null),
                 'supplier_code' => $supplier['code'],
                 'supplier_name' => $supplier['name'],
                 'category_code' => $categoryCode,
@@ -106,10 +127,15 @@ final class ValuedInventoryImportService
             $matched += $this->updateExisting($chunk);
         }
 
+        if ($createChunk !== []) {
+            $created += $this->createMissing($createChunk);
+        }
+
         Cache::tags(['inventory-products', "branch:{$branchId}"])->flush();
 
         return [
             'matched' => $matched,
+            'created' => $created,
             'missing' => $missing,
             'skipped' => $skipped,
         ];
@@ -136,6 +162,108 @@ final class ValuedInventoryImportService
         }
 
         return $updated;
+    }
+
+    /**
+     * @param  array<int, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function newProductRow(
+        array $row,
+        int $branchId,
+        string $source,
+        int $sourceRow,
+        ?string $categoryCode,
+        ?string $categoryName,
+        ?string $subcategoryCode,
+        ?string $subcategoryName,
+        CarbonInterface $now,
+    ): array {
+        $columns = $this->valuedColumns($row);
+        $supplier = $this->parseSupplier((string) $row[$columns['supplier']]);
+
+        return [
+            'branch_id' => $branchId,
+            'code' => $this->cleanText($row[0] ?? null),
+            'name' => $this->cleanText($row[1] ?? null),
+            'unit' => $this->cleanText($row[$columns['unit']] ?? null) ?: null,
+            'current_stock' => $this->parseDecimal($row[$columns['stock']] ?? null),
+            'cost' => $this->parseDecimal($row[$columns['cost']] ?? null),
+            'last_purchase_cost' => $this->parseDecimal($row[$columns['last_purchase']] ?? null),
+            'total_cost' => $this->parseDecimal($row[$columns['total_cost']] ?? null),
+            'supplier_code' => $supplier['code'],
+            'supplier_name' => $supplier['name'],
+            'category_code' => $categoryCode,
+            'category_name' => $categoryName,
+            'subcategory_code' => $subcategoryCode,
+            'subcategory_name' => $subcategoryName,
+            'min_stock' => 0,
+            'valued_inventory_updated_at' => Carbon::now('America/Guayaquil'),
+            'import_source' => $source,
+            'source_row' => $sourceRow,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function createMissing(array $rows): int
+    {
+        DB::table((new InventoryProduct)->getTable())->upsert(
+            $rows,
+            ['branch_id', 'code'],
+            [
+                'name',
+                'unit',
+                'current_stock',
+                'cost',
+                'last_purchase_cost',
+                'total_cost',
+                'supplier_code',
+                'supplier_name',
+                'category_code',
+                'category_name',
+                'subcategory_code',
+                'subcategory_name',
+                'valued_inventory_updated_at',
+                'import_source',
+                'source_row',
+                'updated_at',
+            ],
+        );
+
+        return count($rows);
+    }
+
+    /**
+     * @param  array<int, mixed>  $row
+     * @return array{unit:int,stock:int,cost:int,last_purchase:int,total_cost:int,supplier:int}
+     */
+    private function valuedColumns(array $row): array
+    {
+        $warehouse = $this->cleanText($row[3] ?? null);
+
+        if ($warehouse !== '' && ctype_digit($warehouse)) {
+            return [
+                'unit' => 2,
+                'stock' => 4,
+                'cost' => 5,
+                'last_purchase' => 6,
+                'total_cost' => 7,
+                'supplier' => 8,
+            ];
+        }
+
+        return [
+            'unit' => 2,
+            'stock' => 3,
+            'cost' => 4,
+            'last_purchase' => 4,
+            'total_cost' => 5,
+            'supplier' => 6,
+        ];
     }
 
     /**

@@ -41,6 +41,7 @@ trait ProfileValidationRules
         return [
             'required',
             'string',
+            'lowercase',
             'email',
             'max:255',
             $userId === null

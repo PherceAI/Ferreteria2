@@ -25,6 +25,8 @@ final class FleetController extends Controller
 
     public function refresh(Request $request): JsonResponse
     {
+        abort_unless($this->canManageFleet($request->user()), 403);
+
         try {
             $dashboard = $this->fleetTelemetryService->buildDashboard();
 
@@ -37,7 +39,7 @@ final class FleetController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'No se pudo consultar la plataforma GPS en este momento.',
             ], 503);
         } catch (\Throwable $e) {
             Log::error('FleetController::refresh error', ['exception' => $e->getMessage()]);
@@ -51,6 +53,8 @@ final class FleetController extends Controller
 
     public function testFleetAlerts(Request $request): JsonResponse
     {
+        abort_unless($this->canManageFleet($request->user()), 403);
+
         $users = User::whereHas('pushSubscriptions')->get();
 
         if ($users->isEmpty()) {
@@ -98,6 +102,8 @@ final class FleetController extends Controller
 
     public function saveAlertSettings(Request $request): JsonResponse
     {
+        abort_unless($this->canManageFleet($request->user()), 403);
+
         $validated = $request->validate([
             'scope' => ['required', Rule::in(['global', 'vehicle'])],
             'vehicle_external_id' => ['nullable', 'string', 'max:80'],
@@ -151,5 +157,11 @@ final class FleetController extends Controller
                 ? 'Configuracion global guardada.'
                 : 'Configuracion del vehiculo guardada.',
         ]);
+    }
+
+    private function canManageFleet(?User $user): bool
+    {
+        return $user instanceof User
+            && ($user->hasGlobalBranchAccess() || $user->hasAnyRole(config('internal.logistics_roles')));
     }
 }

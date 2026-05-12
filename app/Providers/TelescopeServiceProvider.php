@@ -40,10 +40,30 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
             return;
         }
 
-        Telescope::hideRequestParameters(['_token']);
+        Telescope::hideRequestParameters([
+            '_token',
+            'access_token',
+            'auth',
+            'client_secret',
+            'code',
+            'current_password',
+            'endpoint',
+            'idempotency_key',
+            'key',
+            'password',
+            'password_confirmation',
+            'refresh_token',
+            'state',
+            'token',
+            'two_factor_recovery_codes',
+            'two_factor_secret',
+        ]);
 
         Telescope::hideRequestHeaders([
+            'authorization',
             'cookie',
+            'php-auth-pw',
+            'php-auth-user',
             'x-csrf-token',
             'x-xsrf-token',
         ]);
@@ -56,9 +76,10 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
      */
     protected function gate(): void
     {
-        Gate::define('viewTelescope', function (User $user) {
-            return in_array($user->email, config('internal.observability_emails'), true)
-                || $user->hasRole(config('internal.observability_roles'));
+        Gate::define('viewTelescope', function (?User $user) {
+            return $user instanceof User
+                && (in_array($user->email, config('internal.observability_emails'), true)
+                    || $user->hasRole(config('internal.observability_roles')));
         });
     }
 }

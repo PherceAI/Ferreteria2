@@ -1,0 +1,203 @@
+[variables]
+NIXPACKS_PHP_ROOT_DIR = "/app/public"
+NIXPACKS_PHP_FALLBACK_PATH = "/index.php"
+IS_LARAVEL = "true"
+
+[phases.setup]
+nixPkgs = ["...", "python311Packages.supervisor"]
+
+[phases.build]
+cmds = [
+    "composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction",
+    "npm ci",
+    "npm run build",
+    "rm -f public/hot",
+    "mkdir -p /etc/supervisor/conf.d/",
+    "cp /assets/worker-*.conf /etc/supervisor/conf.d/",
+    "cp /assets/supervisord.conf /etc/supervisord.conf",
+    "chmod +x /assets/start.sh"
+]
+
+[start]
+cmd = "/assets/start.sh"
+
+[staticAssets]
+"start.sh" = '''
+#!/bin/bash
+set -e
+
+php artisan storage:link || true
+
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+  php artisan migrate --force
+fi
+
+php artisan optimize:clear
+php artisan optimize
+
+node /assets/scripts/prestart.mjs /assets/nginx.template.conf /etc/nginx.conf
+exec supervisord -c /etc/supervisord.conf -n
+'''
+
+"supervisord.conf" = '''
+[unix_http_server]
+file=/assets/supervisor.sock
+
+[supervisord]
+logfile=/var/log/supervisord.log
+logfile_maxbytes=50MB
+logfile_backups=10
+loglevel=info
+pidfile=/assets/supervisord.pid
+nodaemon=false
+silent=false
+minfds=1024
+minprocs=200
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix:///assets/supervisor.sock
+
+[include]
+files = /etc/supervisor/conf.d/*.conf
+'''
+
+"worker-nginx.conf" = '''
+[program:worker-nginx]
+process_name=%(program_name)s_%(process_num)02d
+command=nginx -c /etc/nginx.conf
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/worker-nginx.log
+stderr_logfile=/var/log/worker-nginx.log
+'''
+
+"worker-phpfpm.conf" = '''
+[program:worker-phpfpm]
+process_name=%(program_name)s_%(process_num)02d
+command=php-fpm -y /assets/php-fpm.conf -F
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/worker-phpfpm.log
+stderr_logfile=/var/log/worker-phpfpm.log
+'''
+
+"worker-queue.conf" = '''
+[program:worker-queue]
+process_name=%(program_name)s_%(process_num)02d
+command=bash -c 'if [ "${QUEUE_WORKER:-queue}" = "horizon" ]; then exec php /app/artisan horizon; else exec php /app/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600; fi'
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+numprocs=1
+startsecs=0
+stopwaitsecs=3600
+stdout_logfile=/var/log/worker-queue.log
+stderr_logfile=/var/log/worker-queue.log
+'''
+
+"worker-scheduler.conf" = '''
+[program:worker-scheduler]
+process_name=%(program_name)s_%(process_num)02d
+command=bash -c 'if [ "${SCHEDULER_ENABLED:-true}" = "true" ]; then exec php /app/artisan schedule:work; else exec sleep infinity; fi'
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stdout_logfile=/var/log/worker-scheduler.log
+stderr_logfile=/var/log/worker-scheduler.log
+'''
+
+"worker-reverb.conf" = '''
+[program:worker-reverb]
+process_name=%(program_name)s_%(process_num)02d
+command=bash -c 'if [ "${REVERB_ENABLED:-false}" = "true" ]; then exec php /app/artisan reverb:start --host="${REVERB_SERVER_HOST:-0.0.0.0}" --port="${REVERB_SERVER_PORT:-8080}"; else exec sleep infinity; fi'
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stdout_logfile=/var/log/worker-reverb.log
+stderr_logfile=/var/log/worker-reverb.log
+'''
+
+"php-fpm.conf" = '''
+[www]
+listen = 127.0.0.1:9000
+user = www-data
+group = www-data
+listen.owner = www-data
+listen.group = www-data
+pm = dynamic
+pm.max_children = 24
+pm.min_spare_servers = 2
+pm.max_spare_servers = 8
+pm.start_servers = 4
+clear_env = no
+php_admin_value[memory_limit] = 512M
+php_admin_value[max_execution_time] = 120
+php_admin_value[max_input_time] = 120
+php_admin_value[post_max_size] = 64M
+php_admin_value[upload_max_filesize] = 64M
+'''
+
+"nginx.template.conf" = '''
+user www-data www-data;
+worker_processes auto;
+daemon off;
+worker_rlimit_nofile 8192;
+
+events {
+  worker_connections 4096;
+}
+
+http {
+    include    $!{nginx}/conf/mime.types;
+    index     index.html index.htm index.php;
+    default_type application/octet-stream;
+    access_log /var/log/nginx-access.log;
+    error_log  /var/log/nginx-error.log;
+    sendfile on;
+    tcp_nopush on;
+    server_tokens off;
+
+    server {
+        listen ${PORT};
+        listen [::]:${PORT};
+        server_name localhost;
+        root ${NIXPACKS_PHP_ROOT_DIR};
+
+        add_header X-Frame-Options "SAMEORIGIN";
+        add_header X-Content-Type-Options "nosniff";
+        add_header Referrer-Policy "strict-origin-when-cross-origin";
+
+        client_max_body_size 64M;
+        index index.php;
+        charset utf-8;
+
+        location / {
+            try_files $uri $uri/ ${NIXPACKS_PHP_FALLBACK_PATH}?$query_string;
+        }
+
+        location = /favicon.ico { access_log off; log_not_found off; }
+        location = /robots.txt  { access_log off; log_not_found off; }
+        error_page 404 /index.php;
+
+        location ~ \.php$ {
+            fastcgi_buffer_size 16k;
+            fastcgi_buffers 16 16k;
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+            include $!{nginx}/conf/fastcgi_params;
+            include $!{nginx}/conf/fastcgi.conf;
+            fastcgi_hide_header X-Powered-By;
+        }
+
+        location ~ /\.(?!well-known).* {
+            deny all;
+        }
+    }
+}
+'''

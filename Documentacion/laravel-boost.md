@@ -18,12 +18,12 @@ Boost ya esta instalado en el proyecto.
 - Paquete: `laravel/boost`
 - Version instalada: `v2.4.3`
 - Dependencia MCP: `laravel/mcp`
-- Configuracion MCP del repo: `.mcp.json` ejecutando `php artisan boost:mcp --env=local`
+- Configuracion MCP del repo: `.mcp.json` ejecutando `php artisan boost:mcp --env=local` con `APP_ENV=local`
 - Configuracion de Boost: `boost.json`
 - Guidelines generadas para Codex: `AGENTS.md`
 - Skills locales para agentes: `.codex/` y `.claude/skills/`
 
-Importante: Boost solo se activa en entorno `local` o cuando `APP_DEBUG=true`. Como la demo publica por Cloudflare Tunnel usa `APP_ENV=production` y `APP_DEBUG=false`, los comandos de Boost deben ejecutarse explicitamente con `--env=local`.
+Importante: Boost solo se activa en entorno `local` o cuando `APP_DEBUG=true`. Como la demo publica por Cloudflare Tunnel usa `APP_ENV=production` y `APP_DEBUG=false`, los comandos de Boost deben ejecutarse explicitamente con `--env=local` y el MCP debe iniciar con `APP_ENV=local`. Ese env es necesario porque las herramientas MCP ejecutan subprocesos `boost:execute-tool`; sin `APP_ENV=local` esos subprocesos leerian `.env` de produccion y Boost no registraria sus comandos internos.
 
 Ejemplo:
 
@@ -57,6 +57,14 @@ Arrancar el servidor MCP manualmente, normalmente lo hace el agente desde `.mcp.
 
 ```bash
 php artisan boost:mcp --env=local
+```
+
+En Codex/MCP, la configuracion debe conservar:
+
+```json
+"env": {
+  "APP_ENV": "local"
+}
 ```
 
 ## Como debe usarlo Codex

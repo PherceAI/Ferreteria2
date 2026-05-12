@@ -59,7 +59,7 @@ class User extends Authenticatable
 
     public function hasGlobalBranchAccess(): bool
     {
-        return $this->hasRole(['Dueño', 'Owner'])
+        return $this->hasRole(config('internal.owner_roles', []))
             || $this->can('branches.view-all');
     }
 }

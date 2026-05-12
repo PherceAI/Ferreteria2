@@ -1,12 +1,5 @@
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import {
-    Building2,
-    Shield,
-    Trash2,
-    UserCheck,
-    Users,
-    UserX,
-} from 'lucide-react';
+import { Building2, Plus, Shield, UserCheck, Users, UserX } from 'lucide-react';
 import type { FormEventHandler } from 'react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +14,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { SharedData } from '@/types';
 
 interface Role {
@@ -31,6 +26,9 @@ interface Role {
 interface Branch {
     id: number;
     name: string;
+    display_name?: string;
+    warehouse_name?: string | null;
+    warehouse_code?: string | null;
     is_headquarters: boolean;
 }
 
@@ -52,9 +50,20 @@ interface Props {
 export default function EmployeesIndex({ users, branches, roles }: Props) {
     const { auth } = usePage<SharedData>().props;
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+    const createForm = useForm({
+        name: '',
+        email: '',
+        password: '',
+        password_confirmation: '',
+        branch_ids: [] as number[],
+        role_names: [] as string[],
+        is_active: true,
+    });
 
     const branchForm = useForm({
         branch_ids: [] as number[],
@@ -122,6 +131,33 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
         roleForm.setData('role_names', updated);
     };
 
+    const toggleCreateBranch = (branchId: number) => {
+        const current = createForm.data.branch_ids;
+        const updated = current.includes(branchId)
+            ? current.filter((id) => id !== branchId)
+            : [...current, branchId];
+        createForm.setData('branch_ids', updated);
+    };
+
+    const toggleCreateRole = (roleName: string) => {
+        const current = createForm.data.role_names;
+        const updated = current.includes(roleName)
+            ? current.filter((name) => name !== roleName)
+            : [...current, roleName];
+        createForm.setData('role_names', updated);
+    };
+
+    const handleCreateSubmit: FormEventHandler = (e) => {
+        e.preventDefault();
+
+        createForm.post('/equipo/empleados', {
+            onSuccess: () => {
+                createForm.reset();
+                setIsCreateModalOpen(false);
+            },
+        });
+    };
+
     const toggleUserStatus = (user: User) => {
         router.patch(
             `/equipo/empleados/${user.id}/estado`,
@@ -147,13 +183,24 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
 
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 <div className="flex flex-col gap-2">
-                    <h1 className="text-2xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
-                        Equipo de Trabajo
-                    </h1>
-                    <p className="text-sm text-neutral-500 dark:text-zinc-400">
-                        Gestiona el acceso a sucursales y roles operativos para
-                        todo el personal.
-                    </p>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="flex flex-col gap-2">
+                            <h1 className="text-2xl font-semibold tracking-[-0.02em] text-neutral-900 dark:text-zinc-50">
+                                Equipo de Trabajo
+                            </h1>
+                            <p className="text-sm text-neutral-500 dark:text-zinc-400">
+                                Gestiona el acceso a sucursales y roles
+                                operativos para todo el personal.
+                            </p>
+                        </div>
+                        <Button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Nuevo empleado
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid gap-6">
@@ -204,7 +251,8 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                                         className="flex items-center gap-1 rounded-lg bg-neutral-100 font-normal hover:bg-neutral-100 dark:bg-zinc-800"
                                                     >
                                                         <Building2 className="h-3 w-3 text-neutral-500" />
-                                                        {branch.name}
+                                                        {branch.display_name ??
+                                                            branch.name}
                                                     </Badge>
                                                 ))
                                             ) : (
@@ -285,8 +333,8 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                         onClick={() => setUserToDelete(user)}
                                         className="rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:hover:bg-red-950/30"
                                     >
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Eliminar
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Retirar acceso
                                     </Button>
                                 </div>
                             </CardContent>
@@ -330,7 +378,12 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                                         htmlFor={`branch-${branch.id}`}
                                         className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                     >
-                                        {branch.name}
+                                        {branch.display_name ?? branch.name}
+                                        {branch.warehouse_code && (
+                                            <span className="ml-2 text-xs text-neutral-500">
+                                                Bodega {branch.warehouse_code}
+                                            </span>
+                                        )}
                                         {branch.is_headquarters && (
                                             <Badge
                                                 variant="secondary"
@@ -427,18 +480,190 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
             </Dialog>
 
             <Dialog
+                open={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+            >
+                <DialogContent className="max-h-[90vh] overflow-y-auto rounded-xl border-neutral-200 shadow-sm sm:max-w-[560px] dark:border-zinc-800">
+                    <form onSubmit={handleCreateSubmit}>
+                        <DialogHeader>
+                            <DialogTitle className="text-lg font-medium tracking-[-0.02em]">
+                                Crear empleado
+                            </DialogTitle>
+                            <DialogDescription className="text-sm">
+                                Crea el usuario interno con una clave temporal,
+                                sucursales y roles desde administracion.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid gap-5 py-6">
+                            <div className="grid gap-2">
+                                <Label htmlFor="employee-name">Nombre</Label>
+                                <Input
+                                    id="employee-name"
+                                    value={createForm.data.name}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'name',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                {createForm.errors.name && (
+                                    <p className="text-xs text-red-600">
+                                        {createForm.errors.name}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="employee-email">Correo</Label>
+                                <Input
+                                    id="employee-email"
+                                    type="email"
+                                    value={createForm.data.email}
+                                    onChange={(event) =>
+                                        createForm.setData(
+                                            'email',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                {createForm.errors.email && (
+                                    <p className="text-xs text-red-600">
+                                        {createForm.errors.email}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="employee-password">
+                                        Clave temporal
+                                    </Label>
+                                    <Input
+                                        id="employee-password"
+                                        type="password"
+                                        value={createForm.data.password}
+                                        onChange={(event) =>
+                                            createForm.setData(
+                                                'password',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    {createForm.errors.password && (
+                                        <p className="text-xs text-red-600">
+                                            {createForm.errors.password}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="employee-password-confirmation">
+                                        Confirmar clave
+                                    </Label>
+                                    <Input
+                                        id="employee-password-confirmation"
+                                        type="password"
+                                        value={
+                                            createForm.data
+                                                .password_confirmation
+                                        }
+                                        onChange={(event) =>
+                                            createForm.setData(
+                                                'password_confirmation',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3">
+                                <Label>Sucursales</Label>
+                                <div className="grid gap-3 rounded-lg border border-neutral-200 p-3 dark:border-zinc-800">
+                                    {branches.map((branch) => (
+                                        <label
+                                            key={branch.id}
+                                            className="flex items-center gap-3 text-sm"
+                                        >
+                                            <Checkbox
+                                                checked={createForm.data.branch_ids.includes(
+                                                    branch.id,
+                                                )}
+                                                onCheckedChange={() =>
+                                                    toggleCreateBranch(
+                                                        branch.id,
+                                                    )
+                                                }
+                                            />
+                                            <span>
+                                                {branch.display_name ??
+                                                    branch.name}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3">
+                                <Label>Roles</Label>
+                                <div className="grid gap-3 rounded-lg border border-neutral-200 p-3 dark:border-zinc-800">
+                                    {roles.map((role) => (
+                                        <label
+                                            key={role.id}
+                                            className="flex items-center gap-3 text-sm"
+                                        >
+                                            <Checkbox
+                                                checked={createForm.data.role_names.includes(
+                                                    role.name,
+                                                )}
+                                                onCheckedChange={() =>
+                                                    toggleCreateRole(role.name)
+                                                }
+                                            />
+                                            <span>{role.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsCreateModalOpen(false)}
+                                className="rounded-lg"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={createForm.processing}
+                                className="rounded-lg"
+                            >
+                                {createForm.processing
+                                    ? 'Creando...'
+                                    : 'Crear empleado'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
                 open={userToDelete !== null}
                 onOpenChange={(open) => !open && setUserToDelete(null)}
             >
                 <DialogContent className="rounded-xl border-neutral-200 shadow-sm sm:max-w-[425px] dark:border-zinc-800">
                     <DialogHeader>
                         <DialogTitle className="text-lg font-medium tracking-[-0.02em]">
-                            Eliminar usuario
+                            Retirar acceso
                         </DialogTitle>
                         <DialogDescription className="text-sm">
-                            Esta accion quitara el acceso de{' '}
-                            {userToDelete?.name} y cerrara sus sesiones
-                            abiertas. No podra volver a entrar al sistema.
+                            Esta accion desactiva a {userToDelete?.name}, cierra
+                            sus sesiones y retira sus roles y sucursales sin
+                            borrar el historial del usuario.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -455,7 +680,7 @@ export default function EmployeesIndex({ users, branches, roles }: Props) {
                             onClick={deleteUser}
                             className="rounded-lg bg-red-600 text-white hover:bg-red-700"
                         >
-                            Eliminar usuario
+                            Retirar acceso
                         </Button>
                     </DialogFooter>
                 </DialogContent>

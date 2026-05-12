@@ -6,7 +6,10 @@
                 "artisan",
                 "boost:mcp",
                 "--env=local"
-            ]
+            ],
+            "env": {
+                "APP_ENV": "local"
+            }
         },
         "context7": {
             "command": "npx",

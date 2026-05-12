@@ -57,10 +57,11 @@ class OperationalUserAccessTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_global_user_can_deactivate_and_delete_test_users(): void
+    public function test_global_user_can_create_and_deactivate_internal_users(): void
     {
         $permission = Permission::firstOrCreate(['name' => 'branches.view-all', 'guard_name' => 'web']);
         $role = Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web']);
+        $sellerRole = Role::firstOrCreate(['name' => 'Vendedor', 'guard_name' => 'web']);
         $role->givePermissionTo($permission);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -69,7 +70,23 @@ class OperationalUserAccessTest extends TestCase
         $owner->branches()->attach($branch);
         $owner->assignRole($role);
 
-        $user = User::factory()->create();
+        $this->actingAs($owner)
+            ->post(route('team.employees.store'), [
+                'name' => 'Empleado Interno',
+                'email' => 'empleado@example.test',
+                'password' => 'password',
+                'password_confirmation' => 'password',
+                'branch_ids' => [$branch->id],
+                'role_names' => [$sellerRole->name],
+                'is_active' => true,
+            ])
+            ->assertRedirect();
+
+        $user = User::query()->where('email', 'empleado@example.test')->firstOrFail();
+
+        $this->assertTrue($user->is_active);
+        $this->assertTrue($user->branches()->whereKey($branch->id)->exists());
+        $this->assertTrue($user->hasRole('Vendedor'));
 
         $this->actingAs($owner)
             ->patch(route('team.employees.status.update', $user), ['is_active' => false])
@@ -81,6 +98,53 @@ class OperationalUserAccessTest extends TestCase
             ->delete(route('team.employees.destroy', $user))
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'is_active' => false,
+            'active_branch_id' => null,
+        ]);
+        $this->assertFalse($user->branches()->whereKey($branch->id)->exists());
+        $this->assertFalse($user->fresh()->hasAnyRole(['Vendedor', 'Owner']));
+    }
+
+    public function test_branch_view_all_permission_alone_cannot_manage_employees(): void
+    {
+        $permission = Permission::firstOrCreate(['name' => 'branches.view-all', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Auditor Sucursales', 'guard_name' => 'web']);
+        $role->givePermissionTo($permission);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $branch = Branch::factory()->create();
+        $user = User::factory()->create(['active_branch_id' => $branch->id]);
+        $user->branches()->attach($branch);
+        $user->assignRole($role);
+
+        $this->actingAs($user)
+            ->get(route('team.employees.index'))
+            ->assertForbidden();
+    }
+
+    public function test_owner_cannot_modify_their_own_roles_or_branches(): void
+    {
+        $permission = Permission::firstOrCreate(['name' => 'branches.view-all', 'guard_name' => 'web']);
+        $role = Role::firstOrCreate(['name' => 'Owner', 'guard_name' => 'web']);
+        $role->givePermissionTo($permission);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $branch = Branch::factory()->create();
+        $owner = User::factory()->create(['active_branch_id' => $branch->id]);
+        $owner->branches()->attach($branch);
+        $owner->assignRole($role);
+
+        $this->actingAs($owner)
+            ->put(route('team.employees.roles.update', $owner), ['role_names' => []])
+            ->assertStatus(422);
+
+        $this->actingAs($owner)
+            ->put(route('team.employees.branches.update', $owner), ['branch_ids' => []])
+            ->assertStatus(422);
+
+        $this->assertTrue($owner->fresh()->hasRole('Owner'));
+        $this->assertTrue($owner->branches()->whereKey($branch->id)->exists());
     }
 }

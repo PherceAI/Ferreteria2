@@ -24,6 +24,7 @@ final class GmailApiService
     public function fetchUnreadPurchaseDocumentMessageIds(string $accessToken): array
     {
         $response = Http::withToken($accessToken)
+            ->timeout(20)
             ->get("{$this->baseUrl}/messages", [
                 'q' => config('gmail_inbox.poll_query'),
                 'maxResults' => 50,
@@ -58,6 +59,7 @@ final class GmailApiService
     public function getMessage(string $accessToken, string $messageId): array
     {
         $response = Http::withToken($accessToken)
+            ->timeout(20)
             ->get("{$this->baseUrl}/messages/{$messageId}", [
                 'format' => 'full',
             ]);
@@ -115,10 +117,15 @@ final class GmailApiService
      */
     public function markAsRead(string $accessToken, string $messageId): void
     {
-        Http::withToken($accessToken)
+        $response = Http::withToken($accessToken)
+            ->timeout(20)
             ->post("{$this->baseUrl}/messages/{$messageId}/modify", [
                 'removeLabelIds' => ['UNREAD'],
             ]);
+
+        if ($response->failed()) {
+            throw new RuntimeException("Gmail mark as read {$messageId} failed: ".$response->body());
+        }
     }
 
     private function isXmlAttachment(array $part): bool
@@ -149,6 +156,7 @@ final class GmailApiService
     private function fetchAttachmentData(string $accessToken, string $messageId, string $attachmentId): string
     {
         $response = Http::withToken($accessToken)
+            ->timeout(20)
             ->get("{$this->baseUrl}/messages/{$messageId}/attachments/{$attachmentId}");
 
         if ($response->failed()) {
@@ -160,6 +168,12 @@ final class GmailApiService
 
     private function decodeBase64Url(string $data): string
     {
-        return base64_decode(strtr($data, '-_', '+/'));
+        $decoded = base64_decode(strtr($data, '-_', '+/'), true);
+
+        if ($decoded === false) {
+            throw new RuntimeException('Gmail attachment contains invalid base64 data.');
+        }
+
+        return $decoded;
     }
 }

@@ -13,6 +13,23 @@ class BranchSwitchTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_official_branch_catalog_knows_store_and_warehouse_names(): void
+    {
+        $branches = Branch::query()
+            ->whereIn('warehouse_code', ['10', '20', '30', '40'])
+            ->orderBy('warehouse_code')
+            ->get();
+
+        $this->assertCount(4, $branches);
+        $this->assertSame('MATRIZ / BODEGA 10', $branches[0]->display_name);
+        $this->assertSame('SUCURSAL 1 / BODEGA 20', $branches[1]->display_name);
+        $this->assertSame('SUCURSAL 3 / BODEGA 30', $branches[2]->display_name);
+        $this->assertSame('SUCURSAL 4 / BODEGA 40', $branches[3]->display_name);
+
+        $this->assertTrue(Branch::query()->searchAlias('BODEGA 40')->where('city', 'Macas')->exists());
+        $this->assertTrue(Branch::query()->searchAlias('SUCURSAL 3')->where('warehouse_code', '30')->exists());
+    }
+
     public function test_user_can_switch_between_assigned_branches(): void
     {
         [$branchA, $branchB] = Branch::factory()->count(2)->create();
@@ -80,5 +97,20 @@ class BranchSwitchTest extends TestCase
             ->put(route('branch.switch'), ['branch_id' => 99999]);
 
         $response->assertSessionHasErrors('branch_id');
+    }
+
+    public function test_branch_switch_rejects_inactive_branch(): void
+    {
+        $active = Branch::factory()->create(['is_active' => true]);
+        $inactive = Branch::factory()->create(['is_active' => false]);
+        $user = User::factory()->create(['active_branch_id' => $active->id]);
+        $user->branches()->attach([$active->id, $inactive->id]);
+
+        $response = $this->actingAs($user)
+            ->from(route('dashboard'))
+            ->put(route('branch.switch'), ['branch_id' => $inactive->id]);
+
+        $response->assertSessionHasErrors('branch_id');
+        $this->assertSame($active->id, $user->fresh()->active_branch_id);
     }
 }

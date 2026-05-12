@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -44,15 +45,25 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete the user's profile.
+     * Deactivate the user's profile without deleting operational history.
      */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
     {
         $user = $request->user();
 
-        Auth::logout();
+        DB::transaction(function () use ($user): void {
+            DB::table('sessions')->where('user_id', $user->getKey())->delete();
 
-        $user->delete();
+            $user->forceFill([
+                'active_branch_id' => null,
+                'is_active' => false,
+            ])->save();
+
+            $user->branches()->detach();
+            $user->syncRoles([]);
+        });
+
+        Auth::logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

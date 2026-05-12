@@ -8,6 +8,7 @@ use App\Domain\Purchasing\Models\PurchaseInvoice;
 use App\Domain\Purchasing\Models\ReceptionConfirmation;
 use App\Domain\Purchasing\Services\ReceptionWorkflowService;
 use App\Domain\Purchasing\Services\SupplierDocumentFilterService;
+use App\Domain\Warehouse\Models\BranchTransfer;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,8 +30,13 @@ final class PurchasingReceiptController extends Controller
     {
         abort_unless($this->canViewReceipts($request), 403);
 
-        $status = $request->string('status')->value();
-        $search = $request->string('search')->value();
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(['all', 'awaiting_physical', 'receiving', 'received_ok', 'received_discrepancy', 'closed'])],
+            'search' => ['nullable', 'string', 'max:120'],
+            'invoice' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $status = (string) ($validated['status'] ?? '');
+        $search = trim((string) ($validated['search'] ?? ''));
         $viewMode = $this->receiptViewMode($request);
         $branchId = (int) Context::get('branch_id');
         $allowedSupplierIds = $this->supplierFilter->allowedSupplierIds($branchId);
@@ -42,6 +48,7 @@ final class PurchasingReceiptController extends Controller
                 'events.user',
             ])
             ->withCount('items')
+            ->where('branch_id', $branchId)
             ->whereIn('supplier_id', $allowedSupplierIds)
             ->latest('created_at');
 
@@ -62,7 +69,7 @@ final class PurchasingReceiptController extends Controller
         }
 
         $invoices = $query->limit(50)->get();
-        $requestedInvoiceId = $request->integer('invoice');
+        $requestedInvoiceId = (int) ($validated['invoice'] ?? 0);
         $selectedInvoice = $requestedInvoiceId > 0
             ? $invoices->firstWhere('id', $requestedInvoiceId)
             : ($viewMode === 'warehouse' ? null : $invoices->first());
@@ -77,12 +84,13 @@ final class PurchasingReceiptController extends Controller
                 'status' => $status === '' ? 'all' : $status,
                 'search' => $search,
             ],
-            'stats' => $this->stats($allowedSupplierIds),
+            'stats' => $this->stats($branchId, $allowedSupplierIds),
             'invoices' => $invoices->map(fn (PurchaseInvoice $invoice) => $this->invoiceListData($invoice))->values(),
             'selectedInvoice' => $selectedInvoice instanceof PurchaseInvoice
                 ? $this->invoiceDetailData($selectedInvoice)
                 : null,
             'statusOptions' => $this->statusOptions(),
+            'transferTasks' => $this->transferTasks($branchId),
             'viewMode' => $viewMode,
         ]);
     }
@@ -163,37 +171,43 @@ final class PurchasingReceiptController extends Controller
     /**
      * @param  array<int,int>  $allowedSupplierIds
      */
-    private function stats(array $allowedSupplierIds): array
+    private function stats(int $branchId, array $allowedSupplierIds): array
     {
-        $today = Carbon::today();
+        $startOfDay = Carbon::today()->startOfDay();
+        $endOfDay = Carbon::today()->endOfDay();
         $awaiting = ['pending', 'awaiting_physical', 'detected', 'receiving'];
 
-        $waitingMinutes = (clone PurchaseInvoice::query())
+        $averageWaitingMinutes = (float) (PurchaseInvoice::query()
+            ->where('branch_id', $branchId)
             ->whereIn('supplier_id', $allowedSupplierIds)
             ->whereIn('status', $awaiting)
-            ->get()
-            ->map(fn (PurchaseInvoice $invoice) => $invoice->created_at?->diffInMinutes(now()) ?? 0);
+            ->selectRaw('AVG(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - created_at)) / 60) as aggregate')
+            ->value('aggregate') ?? 0);
 
         return [
             'detectedToday' => PurchaseInvoice::query()
+                ->where('branch_id', $branchId)
                 ->whereIn('supplier_id', $allowedSupplierIds)
-                ->whereDate('created_at', $today)
+                ->whereBetween('created_at', [$startOfDay, $endOfDay])
                 ->count(),
             'awaitingPhysical' => PurchaseInvoice::query()
+                ->where('branch_id', $branchId)
                 ->whereIn('supplier_id', $allowedSupplierIds)
                 ->whereIn('status', $awaiting)
                 ->count(),
             'withDiscrepancy' => PurchaseInvoice::query()
+                ->where('branch_id', $branchId)
                 ->whereIn('supplier_id', $allowedSupplierIds)
                 ->where('status', 'received_discrepancy')
                 ->count(),
             'receivedToday' => PurchaseInvoice::query()
+                ->where('branch_id', $branchId)
                 ->whereIn('supplier_id', $allowedSupplierIds)
                 ->whereIn('status', ['received_ok', 'received_discrepancy', 'closed'])
-                ->whereDate('updated_at', $today)
+                ->whereBetween('updated_at', [$startOfDay, $endOfDay])
                 ->count(),
-            'averageWaitingHours' => $waitingMinutes->count() > 0
-                ? round($waitingMinutes->average() / 60, 1)
+            'averageWaitingHours' => $averageWaitingMinutes > 0
+                ? round($averageWaitingMinutes / 60, 1)
                 : 0,
         ];
     }
@@ -277,6 +291,86 @@ final class PurchasingReceiptController extends Controller
         ];
     }
 
+    private function transferTasks(int $branchId): array
+    {
+        $base = BranchTransfer::query()
+            ->with(['sourceBranch', 'destinationBranch', 'requestedBy', 'items'])
+            ->latest('created_at');
+
+        $outbound = (clone $base)
+            ->where('source_branch_id', $branchId)
+            ->whereIn('status', [
+                BranchTransfer::STATUS_REQUESTED,
+                BranchTransfer::STATUS_PREPARING,
+                BranchTransfer::STATUS_READY_TO_SHIP,
+            ])
+            ->limit(30)
+            ->get()
+            ->map(fn (BranchTransfer $transfer) => $this->transferTaskData($transfer, 'outbound'))
+            ->values();
+
+        $inbound = (clone $base)
+            ->where('destination_branch_id', $branchId)
+            ->where('status', BranchTransfer::STATUS_IN_TRANSIT)
+            ->limit(30)
+            ->get()
+            ->map(fn (BranchTransfer $transfer) => $this->transferTaskData($transfer, 'inbound'))
+            ->values();
+
+        return [
+            'outbound' => $outbound,
+            'inbound' => $inbound,
+            'counts' => [
+                'outbound' => $outbound->count(),
+                'inbound' => $inbound->count(),
+            ],
+        ];
+    }
+
+    private function transferTaskData(BranchTransfer $transfer, string $direction): array
+    {
+        return [
+            'id' => $transfer->id,
+            'direction' => $direction,
+            'status' => $transfer->status,
+            'statusLabel' => $this->transferStatusLabel($transfer->status),
+            'sourceBranch' => [
+                'id' => $transfer->sourceBranch->id,
+                'displayName' => $transfer->sourceBranch->display_name,
+                'warehouseCode' => $transfer->sourceBranch->warehouse_code,
+            ],
+            'destinationBranch' => [
+                'id' => $transfer->destinationBranch->id,
+                'displayName' => $transfer->destinationBranch->display_name,
+                'warehouseCode' => $transfer->destinationBranch->warehouse_code,
+            ],
+            'requestedBy' => $transfer->requestedBy?->name,
+            'createdAt' => $transfer->created_at?->format('d/m/Y H:i'),
+            'items' => $transfer->items->map(fn ($item) => [
+                'id' => $item->id,
+                'productCode' => $item->product_code,
+                'productName' => $item->product_name,
+                'unit' => $item->unit,
+                'requestedQty' => (float) $item->requested_qty,
+                'preparedQty' => $item->prepared_qty !== null ? (float) $item->prepared_qty : null,
+                'receivedQty' => $item->received_qty !== null ? (float) $item->received_qty : null,
+                'sourceStockSnapshot' => $item->source_stock_snapshot !== null ? (float) $item->source_stock_snapshot : null,
+                'sourceStockVerified' => $item->source_stock_verified,
+            ])->values(),
+        ];
+    }
+
+    private function transferStatusLabel(string $status): string
+    {
+        return match ($status) {
+            BranchTransfer::STATUS_REQUESTED => 'Por preparar',
+            BranchTransfer::STATUS_PREPARING => 'Preparando',
+            BranchTransfer::STATUS_READY_TO_SHIP => 'Listo para enviar',
+            BranchTransfer::STATUS_IN_TRANSIT => 'En camino',
+            default => $status,
+        };
+    }
+
     private function statusLabel(string $status): string
     {
         return collect($this->statusOptions())->firstWhere('value', $status)['label'] ?? 'Detectada';
@@ -286,8 +380,8 @@ final class PurchasingReceiptController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasRole('Bodeguero')
-            && ! $user->hasAnyRole(['Dueño', 'Owner', 'Contadora', 'Encargada Compras'])
+        if ($user->hasAnyRole(config('internal.warehouse_roles', []))
+            && ! $user->hasAnyRole(config('internal.receipt_review_roles', []))
             && ! $user->hasGlobalBranchAccess()) {
             return 'warehouse';
         }
@@ -297,18 +391,18 @@ final class PurchasingReceiptController extends Controller
 
     private function canReceive(Request $request): bool
     {
-        return $request->user()->hasRole('Bodeguero');
+        return $request->user()->hasAnyRole(config('internal.warehouse_roles', []));
     }
 
     private function canViewReceipts(Request $request): bool
     {
-        return $request->user()->hasAnyRole(['Dueño', 'Owner', 'Contadora', 'Encargada Compras', 'Bodeguero'])
+        return $request->user()->hasAnyRole(config('internal.receipt_view_roles', []))
             || $request->user()->hasGlobalBranchAccess();
     }
 
     private function canManageReview(Request $request): bool
     {
-        return $request->user()->hasAnyRole(['Dueño', 'Owner', 'Contadora', 'Encargada Compras'])
+        return $request->user()->hasAnyRole(config('internal.receipt_review_roles', []))
             || $request->user()->hasGlobalBranchAccess();
     }
 

@@ -47,8 +47,16 @@ export function BranchSwitcher() {
         );
     };
 
-    const activeLabel = activeBranch?.name ?? 'Sin sucursal';
-    const activeCode = activeBranch?.code ?? '';
+    const branchLabel = (branch: Branch) => branch.display_name ?? branch.name;
+    const branchCode = (branch: Branch) =>
+        branch.warehouse_code
+            ? `Bodega ${branch.warehouse_code} · ${branch.code}`
+            : branch.code;
+
+    const activeLabel = activeBranch
+        ? branchLabel(activeBranch)
+        : 'Sin sucursal';
+    const activeCode = activeBranch ? branchCode(activeBranch) : '';
 
     if (!showDropdown) {
         return (
@@ -127,10 +135,10 @@ export function BranchSwitcher() {
                                 <Building2 className="size-4 opacity-70" />
                                 <div className="flex flex-1 flex-col">
                                     <span className="text-sm">
-                                        {branch.name}
+                                        {branchLabel(branch)}
                                     </span>
                                     <span className="text-xs text-muted-foreground">
-                                        {branch.code}
+                                        {branchCode(branch)}
                                     </span>
                                 </div>
                                 {branch.id === activeBranch?.id && (

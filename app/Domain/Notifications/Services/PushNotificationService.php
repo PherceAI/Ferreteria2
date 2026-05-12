@@ -9,6 +9,7 @@ use App\Domain\Notifications\Notifications\GenericWebPushNotification;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use Spatie\Permission\Models\Role;
 
 /**
  * Punto central para enviar notificaciones web push desde cualquier módulo.
@@ -59,9 +60,29 @@ final class PushNotificationService
      */
     public function sendToRolesInBranch(int $branchId, array $roles, WebPushData $data): void
     {
+        $existingRoles = Role::query()
+            ->whereIn('name', $roles)
+            ->where('guard_name', 'web')
+            ->pluck('name')
+            ->all();
+
+        if ($existingRoles === []) {
+            return;
+        }
+
         $users = User::query()
             ->whereHas('branches', fn ($q) => $q->where('branches.id', $branchId))
-            ->role($roles)
+            ->role($existingRoles)
+            ->where('is_active', true)
+            ->get();
+
+        $this->send($users, $data);
+    }
+
+    public function sendToBranch(int $branchId, WebPushData $data): void
+    {
+        $users = User::query()
+            ->whereHas('branches', fn ($query) => $query->where('branches.id', $branchId))
             ->where('is_active', true)
             ->get();
 

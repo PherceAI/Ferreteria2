@@ -61,7 +61,24 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
-    public function test_user_can_delete_their_account()
+    public function test_profile_email_must_be_lowercase(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->from(route('profile.edit'))
+            ->patch(route('profile.update'), [
+                'name' => 'Test User',
+                'email' => 'UPPER@example.com',
+            ]);
+
+        $response
+            ->assertSessionHasErrors('email')
+            ->assertRedirect(route('profile.edit'));
+    }
+
+    public function test_user_can_deactivate_their_account_without_deleting_history()
     {
         $user = User::factory()->create();
 
@@ -76,10 +93,14 @@ class ProfileUpdateTest extends TestCase
             ->assertRedirect(route('home'));
 
         $this->assertGuest();
-        $this->assertNull($user->fresh());
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'is_active' => false,
+            'active_branch_id' => null,
+        ]);
     }
 
-    public function test_correct_password_must_be_provided_to_delete_account()
+    public function test_correct_password_must_be_provided_to_deactivate_account()
     {
         $user = User::factory()->create();
 

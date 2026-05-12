@@ -121,13 +121,24 @@ final class PurchaseInvoiceService
             $invoice->update(['status' => 'awaiting_physical']);
         }
 
-        $confirmation = ReceptionConfirmation::withoutBranchScope()->firstOrCreate(
-            ['invoice_id' => $invoice->id],
-            [
-                'branch_id' => $invoice->branch_id,
-                'status' => 'pending',
-            ],
-        );
+        try {
+            $confirmation = ReceptionConfirmation::withoutBranchScope()->firstOrCreate(
+                ['invoice_id' => $invoice->id],
+                [
+                    'branch_id' => $invoice->branch_id,
+                    'status' => 'pending',
+                ],
+            );
+        } catch (QueryException $exception) {
+            if (! $this->isUniqueConstraintViolation($exception)) {
+                throw $exception;
+            }
+
+            $confirmation = ReceptionConfirmation::withoutBranchScope()
+                ->where('invoice_id', $invoice->id)
+                ->firstOrFail();
+        }
+
         $this->workflow->ensureReceptionItems($confirmation);
 
         return $confirmation;
@@ -135,23 +146,47 @@ final class PurchaseInvoiceService
 
     private function findOrCreateSupplier(PurchaseInvoiceData $data, int $branchId): Supplier
     {
+        $hadBranchScopeBypass = Context::hasHidden('branch_scope_bypass');
+        $previousBranchScopeBypass = Context::getHidden('branch_scope_bypass', false);
+        $rucHash = $this->supplierRucHash($data->supplierRuc);
+
         Context::addHidden('branch_scope_bypass', true);
 
         try {
-            return Supplier::withoutBranchScope()->firstOrCreate(
-                [
-                    'branch_id' => $branchId,
-                    'ruc_hash' => $this->supplierRucHash($data->supplierRuc),
-                ],
-                [
-                    'ruc' => $data->supplierRuc,
-                    'name' => $data->supplierName,
-                    'email' => $data->fromEmail,
-                ],
-            );
+            try {
+                return Supplier::withoutBranchScope()->firstOrCreate(
+                    [
+                        'branch_id' => $branchId,
+                        'ruc_hash' => $rucHash,
+                    ],
+                    [
+                        'ruc' => $data->supplierRuc,
+                        'name' => $data->supplierName,
+                        'email' => $data->fromEmail,
+                    ],
+                );
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+
+                return Supplier::withoutBranchScope()
+                    ->where('branch_id', $branchId)
+                    ->where('ruc_hash', $rucHash)
+                    ->firstOrFail();
+            }
         } finally {
-            Context::forgetHidden('branch_scope_bypass');
+            if ($hadBranchScopeBypass) {
+                Context::addHidden('branch_scope_bypass', $previousBranchScopeBypass);
+            } else {
+                Context::forgetHidden('branch_scope_bypass');
+            }
         }
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        return $exception->getCode() === '23505';
     }
 
     private function supplierRucHash(string $ruc): string

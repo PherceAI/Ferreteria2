@@ -16,7 +16,7 @@ return [
     |
     */
 
-    'enabled' => env('TELESCOPE_ENABLED', true),
+    'enabled' => env('TELESCOPE_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
@@ -94,6 +94,7 @@ return [
 
     'middleware' => [
         'web',
+        'auth',
         Authorize::class,
     ],
 

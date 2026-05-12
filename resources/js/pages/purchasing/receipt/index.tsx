@@ -8,8 +8,9 @@ import {
     PackageCheck,
     Search,
     ShieldAlert,
+    Truck,
 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -76,6 +77,38 @@ type InvoiceDetail = InvoiceListItem & {
     }>;
 };
 
+type TransferTaskItem = {
+    id: number;
+    productCode: string;
+    productName: string;
+    unit: string | null;
+    requestedQty: number;
+    preparedQty: number | null;
+    receivedQty: number | null;
+    sourceStockSnapshot: number | null;
+    sourceStockVerified: boolean;
+};
+
+type TransferTask = {
+    id: number;
+    direction: 'inbound' | 'outbound';
+    status: string;
+    statusLabel: string;
+    sourceBranch: {
+        id: number;
+        displayName: string;
+        warehouseCode: string | null;
+    };
+    destinationBranch: {
+        id: number;
+        displayName: string;
+        warehouseCode: string | null;
+    };
+    requestedBy: string | null;
+    createdAt: string | null;
+    items: TransferTaskItem[];
+};
+
 type Props = {
     filters: {
         status: string;
@@ -91,6 +124,14 @@ type Props = {
     invoices: InvoiceListItem[];
     selectedInvoice: InvoiceDetail | null;
     statusOptions: Array<{ value: string; label: string }>;
+    transferTasks: {
+        inbound: TransferTask[];
+        outbound: TransferTask[];
+        counts: {
+            inbound: number;
+            outbound: number;
+        };
+    };
     viewMode: 'admin' | 'warehouse';
 };
 
@@ -127,6 +168,7 @@ export default function PurchasingReceiptIndex({
     invoices,
     selectedInvoice,
     statusOptions,
+    transferTasks,
     viewMode,
 }: Props) {
     const selectedItems = useMemo(
@@ -263,7 +305,7 @@ export default function PurchasingReceiptIndex({
                 invoices={invoices}
                 rows={selectedItemRows}
                 selectedInvoice={selectedInvoice}
-                stats={stats}
+                transferTasks={transferTasks}
                 onClearSelection={clearSelectedInvoice}
                 onSelectInvoice={selectInvoice}
                 onStart={startReception}
@@ -467,7 +509,7 @@ function WarehouseReceiptView({
     invoices,
     rows,
     selectedInvoice,
-    stats,
+    transferTasks,
     onClearSelection,
     onSelectInvoice,
     onStart,
@@ -491,12 +533,25 @@ function WarehouseReceiptView({
         formItem?: (typeof form.data.items)[number];
     }>;
     selectedInvoice: InvoiceDetail | null;
-    stats: Props['stats'];
+    transferTasks: Props['transferTasks'];
     onClearSelection: () => void;
     onSelectInvoice: (invoiceId: number) => void;
     onStart: () => void;
     onSubmit: () => void;
 }) {
+    const [taskView, setTaskView] = useState<
+        'invoices' | 'transfer_inbound' | 'transfer_outbound'
+    >('invoices');
+    const visibleTransfers =
+        taskView === 'transfer_inbound'
+            ? transferTasks.inbound
+            : transferTasks.outbound;
+    const activeTaskTitle = {
+        invoices: 'Facturas por recibir',
+        transfer_inbound: 'Traspasos que llegan',
+        transfer_outbound: 'Traspasos por enviar',
+    }[taskView];
+
     return (
         <>
             <Head title="Recepciones pendientes" />
@@ -507,81 +562,90 @@ function WarehouseReceiptView({
                         Bodega
                     </p>
                     <h1 className="mt-1 text-xl font-semibold tracking-[-0.02em] text-neutral-900 sm:text-2xl dark:text-zinc-50">
-                        Recepciones pendientes
+                        Trabajo de bodega
                     </h1>
                     <p className="mt-2 text-sm leading-6 text-neutral-600 dark:text-zinc-400">
-                        Confirma lo que llego fisicamente contra la factura
-                        detectada.
-                        <span className="hidden sm:inline">
-                            {' '}
-                            Solo marca diferencias cuando algo no cuadre.
-                        </span>
+                        {activeTaskTitle}
                     </p>
                 </header>
 
-                <WarehouseQuickStats
-                    pending={invoices.length}
-                    receivedToday={stats.receivedToday}
-                    discrepancies={stats.withDiscrepancy}
+                <WarehouseTaskNav
+                    active={taskView}
+                    invoiceCount={invoices.length}
+                    inboundCount={transferTasks.counts.inbound}
+                    outboundCount={transferTasks.counts.outbound}
+                    onChange={setTaskView}
                 />
 
-                <section className="grid min-w-0 gap-3 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-4">
-                    <Card
-                        className={`min-w-0 overflow-hidden border-neutral-200 shadow-none xl:sticky xl:top-4 xl:order-1 xl:self-start dark:border-zinc-800 ${
-                            selectedInvoice ? 'order-2' : 'order-1'
-                        }`}
-                    >
-                        <CardHeader className="p-4 sm:p-6">
-                            <CardTitle className="text-base font-medium tracking-[-0.02em]">
-                                Pendientes de tu sucursal
-                            </CardTitle>
-                            <p className="text-sm text-neutral-500">
-                                {invoices.length} facturas esperando revision.
-                            </p>
-                        </CardHeader>
-                        <CardContent className="max-h-[44vh] space-y-2 overflow-y-auto p-4 pt-0 sm:max-h-[520px] sm:p-6 sm:pt-0">
-                            {invoices.length === 0 ? (
-                                <EmptyState />
-                            ) : (
-                                invoices.map((invoice) => (
-                                    <WarehouseInvoiceButton
-                                        key={invoice.id}
-                                        invoice={invoice}
-                                        selected={
-                                            invoice.id === selectedInvoice?.id
-                                        }
-                                        onClick={() =>
-                                            onSelectInvoice(invoice.id)
-                                        }
-                                    />
-                                ))
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {selectedInvoice ? (
-                        <div className="order-1 min-w-0 space-y-3 sm:space-y-4 xl:order-2">
-                            <WarehouseInvoiceHeader
-                                invoice={selectedInvoice}
-                                onClearSelection={onClearSelection}
-                            />
-                            <ReceptionPanel
-                                canReceive={canReceive}
-                                form={form}
-                                invoice={selectedInvoice}
-                                rows={rows}
-                                onStart={onStart}
-                                onSubmit={onSubmit}
-                            />
-                        </div>
-                    ) : (
-                        <Card className="min-w-0 border-neutral-200 shadow-none dark:border-zinc-800">
-                            <CardContent className="p-6">
-                                <EmptyState />
+                {taskView === 'invoices' ? (
+                    <section className="grid min-w-0 gap-3 xl:grid-cols-[320px_minmax(0,1fr)] xl:gap-4">
+                        <Card
+                            className={`min-w-0 overflow-hidden border-neutral-200 shadow-none xl:sticky xl:top-4 xl:order-1 xl:self-start dark:border-zinc-800 ${
+                                selectedInvoice ? 'order-2' : 'order-1'
+                            }`}
+                        >
+                            <CardHeader className="p-4 sm:p-6">
+                                <CardTitle className="text-base font-medium tracking-[-0.02em]">
+                                    Facturas por recibir
+                                </CardTitle>
+                                <p className="text-sm text-neutral-500">
+                                    {invoices.length} pendientes para validar.
+                                </p>
+                            </CardHeader>
+                            <CardContent className="max-h-[52vh] space-y-2 overflow-y-auto p-4 pt-0 sm:max-h-[620px] sm:p-6 sm:pt-0">
+                                {invoices.length === 0 ? (
+                                    <EmptyState />
+                                ) : (
+                                    invoices.map((invoice) => (
+                                        <WarehouseInvoiceButton
+                                            key={invoice.id}
+                                            invoice={invoice}
+                                            selected={
+                                                invoice.id ===
+                                                selectedInvoice?.id
+                                            }
+                                            onClick={() =>
+                                                onSelectInvoice(invoice.id)
+                                            }
+                                        />
+                                    ))
+                                )}
                             </CardContent>
                         </Card>
-                    )}
-                </section>
+
+                        {selectedInvoice ? (
+                            <div className="order-1 min-w-0 space-y-3 sm:space-y-4 xl:order-2">
+                                <WarehouseInvoiceHeader
+                                    invoice={selectedInvoice}
+                                    onClearSelection={onClearSelection}
+                                />
+                                <ReceptionPanel
+                                    canReceive={canReceive}
+                                    form={form}
+                                    invoice={selectedInvoice}
+                                    rows={rows}
+                                    onStart={onStart}
+                                    onSubmit={onSubmit}
+                                />
+                            </div>
+                        ) : (
+                            <Card className="min-w-0 border-neutral-200 shadow-none dark:border-zinc-800">
+                                <CardContent className="p-6">
+                                    <EmptyState />
+                                </CardContent>
+                            </Card>
+                        )}
+                    </section>
+                ) : (
+                    <TransferTaskBoard
+                        direction={
+                            taskView === 'transfer_inbound'
+                                ? 'inbound'
+                                : 'outbound'
+                        }
+                        transfers={visibleTransfers}
+                    />
+                )}
             </div>
         </>
     );
@@ -634,51 +698,305 @@ function WarehouseInvoiceButton({
     );
 }
 
-function WarehouseQuickStats({
-    pending,
-    receivedToday,
-    discrepancies,
+function WarehouseTaskNav({
+    active,
+    invoiceCount,
+    inboundCount,
+    outboundCount,
+    onChange,
 }: {
-    pending: number;
-    receivedToday: number;
-    discrepancies: number;
+    active: 'invoices' | 'transfer_inbound' | 'transfer_outbound';
+    invoiceCount: number;
+    inboundCount: number;
+    outboundCount: number;
+    onChange: (
+        view: 'invoices' | 'transfer_inbound' | 'transfer_outbound',
+    ) => void;
 }) {
     return (
-        <section className="grid grid-cols-3 gap-2 sm:gap-3">
-            <WarehouseStatCard
-                label="Pendientes"
-                value={pending}
-                tone="bg-amber-50 text-amber-700 ring-amber-100 dark:bg-amber-950/20 dark:text-amber-300 dark:ring-amber-900/50"
+        <nav className="sticky top-2 z-20 grid grid-cols-3 gap-2 rounded-2xl border border-neutral-200 bg-white/95 p-2 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/95">
+            <WarehouseTaskButton
+                active={active === 'invoices'}
+                count={invoiceCount}
+                label="Facturas"
+                onClick={() => onChange('invoices')}
             />
-            <WarehouseStatCard
-                label="Listas hoy"
-                value={receivedToday}
-                tone="bg-emerald-50 text-emerald-700 ring-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-300 dark:ring-emerald-900/50"
+            <WarehouseTaskButton
+                active={active === 'transfer_inbound'}
+                count={inboundCount}
+                label="Llegan"
+                onClick={() => onChange('transfer_inbound')}
             />
-            <WarehouseStatCard
-                label="Novedades"
-                value={discrepancies}
-                tone="bg-red-50 text-red-700 ring-red-100 dark:bg-red-950/20 dark:text-red-300 dark:ring-red-900/50"
+            <WarehouseTaskButton
+                active={active === 'transfer_outbound'}
+                count={outboundCount}
+                label="Enviar"
+                onClick={() => onChange('transfer_outbound')}
             />
-        </section>
+        </nav>
     );
 }
 
-function WarehouseStatCard({
+function WarehouseTaskButton({
+    active,
+    count,
     label,
-    value,
-    tone,
+    onClick,
 }: {
+    active: boolean;
+    count: number;
     label: string;
-    value: number;
-    tone: string;
+    onClick: () => void;
+}) {
+    const badge = count > 9 ? '9+' : String(count);
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`relative h-14 rounded-xl text-sm font-semibold transition-colors ${
+                active
+                    ? 'bg-neutral-900 text-white dark:bg-zinc-50 dark:text-zinc-950'
+                    : 'bg-neutral-50 text-neutral-700 hover:bg-neutral-100 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+            }`}
+        >
+            {label}
+            {count > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white ring-2 ring-white dark:ring-zinc-950">
+                    {badge}
+                </span>
+            )}
+        </button>
+    );
+}
+
+function TransferTaskBoard({
+    direction,
+    transfers,
+}: {
+    direction: 'inbound' | 'outbound';
+    transfers: TransferTask[];
 }) {
     return (
-        <div className={`rounded-xl p-3 ring-1 ${tone}`}>
-            <p className="text-[11px] font-medium sm:text-xs">{label}</p>
-            <p className="mt-1 text-2xl font-semibold tracking-[-0.02em]">
-                {value}
-            </p>
+        <div className="order-1 min-w-0 space-y-3 sm:space-y-4 xl:order-2">
+            <Card className="min-w-0 border-neutral-200 shadow-none dark:border-zinc-800">
+                <CardHeader className="p-4 sm:p-5">
+                    <CardTitle className="text-base font-medium tracking-[-0.02em]">
+                        {direction === 'inbound'
+                            ? 'Traspasos por recibir'
+                            : 'Traspasos por preparar y enviar'}
+                    </CardTitle>
+                    <p className="text-sm text-neutral-500">
+                        {direction === 'inbound'
+                            ? 'Valida las cantidades reales cuando el camion llegue a tu bodega.'
+                            : 'Separa productos, marca camion cargado y confirma la salida.'}
+                    </p>
+                </CardHeader>
+                <CardContent className="space-y-3 p-4 pt-0 sm:p-5 sm:pt-0">
+                    {transfers.length === 0 ? (
+                        <EmptyState />
+                    ) : (
+                        transfers.map((transfer) => (
+                            <TransferTaskPanel
+                                key={transfer.id}
+                                direction={direction}
+                                transfer={transfer}
+                            />
+                        ))
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function TransferTaskPanel({
+    direction,
+    transfer,
+}: {
+    direction: 'inbound' | 'outbound';
+    transfer: TransferTask;
+}) {
+    const form = useForm({
+        notes: '',
+        items: transfer.items.map((item) => ({
+            id: item.id,
+            prepared_qty: String(item.preparedQty ?? item.requestedQty),
+            received_qty: String(
+                item.receivedQty ?? item.preparedQty ?? item.requestedQty,
+            ),
+            preparation_notes: '',
+            reception_notes: '',
+        })),
+    });
+
+    const updateItem = (
+        index: number,
+        patch: Partial<(typeof form.data.items)[number]>,
+    ) => {
+        form.setData(
+            'items',
+            form.data.items.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, ...patch } : item,
+            ),
+        );
+    };
+
+    const startPreparing = () => {
+        form.post(`/inventory/transfers/${transfer.id}/start-preparing`, {
+            preserveScroll: true,
+        });
+    };
+
+    const receiveTransfer = () => {
+        form.transform((data) => ({
+            notes: data.notes,
+            items: data.items.map((item) => ({
+                id: item.id,
+                received_qty: item.received_qty,
+                reception_notes: item.reception_notes,
+            })),
+        }));
+        form.post(`/inventory/transfers/${transfer.id}/receive`, {
+            preserveScroll: true,
+        });
+    };
+
+    const postTransferAction = (action: string) => {
+        router.post(
+            `/inventory/transfers/${transfer.id}/${action}`,
+            { notes: form.data.notes },
+            { preserveScroll: true },
+        );
+    };
+
+    return (
+        <div className="rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-zinc-800">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">Traspaso #{transfer.id}</p>
+                        <Badge variant="outline">{transfer.statusLabel}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-neutral-500">
+                        {direction === 'inbound'
+                            ? `Desde ${transfer.sourceBranch.displayName}`
+                            : `Para ${transfer.destinationBranch.displayName}`}
+                    </p>
+                </div>
+                <p className="text-xs text-neutral-500">{transfer.createdAt}</p>
+            </div>
+
+            <div className="mt-4 space-y-3">
+                {transfer.items.map((item, index) => {
+                    const formItem = form.data.items[index];
+                    const quantityField =
+                        direction === 'inbound'
+                            ? 'received_qty'
+                            : 'prepared_qty';
+
+                    return (
+                        <div
+                            key={item.id}
+                            className="grid gap-3 rounded-lg bg-neutral-50 p-3 sm:grid-cols-[minmax(0,1fr)_140px] dark:bg-zinc-900/70"
+                        >
+                            <div className="min-w-0">
+                                <p className="text-sm font-medium break-words">
+                                    {item.productName}
+                                </p>
+                                <p className="mt-1 text-xs text-neutral-500">
+                                    {item.productCode} · Solicitado{' '}
+                                    {quantityFormatter.format(
+                                        item.requestedQty,
+                                    )}
+                                    {item.preparedQty !== null
+                                        ? ` · Preparado ${quantityFormatter.format(item.preparedQty)}`
+                                        : ''}
+                                </p>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs text-neutral-500">
+                                    {direction === 'inbound'
+                                        ? 'Recibido'
+                                        : 'Preparado'}
+                                </Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.001"
+                                    value={formItem?.[quantityField] ?? ''}
+                                    disabled={
+                                        direction === 'outbound' &&
+                                        transfer.status !== 'requested'
+                                    }
+                                    onChange={(event) =>
+                                        updateItem(index, {
+                                            [quantityField]: event.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="mt-4 space-y-2">
+                <Label className="text-xs text-neutral-500">Nota</Label>
+                <textarea
+                    className="min-h-20 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-neutral-400 dark:border-zinc-800 dark:bg-zinc-950"
+                    value={form.data.notes}
+                    onChange={(event) =>
+                        form.setData('notes', event.target.value)
+                    }
+                />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                {direction === 'inbound' && (
+                    <Button
+                        className="h-11"
+                        disabled={form.processing}
+                        onClick={receiveTransfer}
+                    >
+                        <PackageCheck className="h-4 w-4" />
+                        Confirmar recepcion
+                    </Button>
+                )}
+                {direction === 'outbound' &&
+                    transfer.status === 'requested' && (
+                        <Button
+                            className="h-11"
+                            disabled={form.processing}
+                            onClick={startPreparing}
+                        >
+                            <PackageCheck className="h-4 w-4" />
+                            Iniciar preparacion
+                        </Button>
+                    )}
+                {direction === 'outbound' &&
+                    transfer.status === 'preparing' && (
+                        <Button
+                            className="h-11"
+                            disabled={form.processing}
+                            onClick={() => postTransferAction('ready-to-ship')}
+                        >
+                            <Truck className="h-4 w-4" />
+                            Montado al camion
+                        </Button>
+                    )}
+                {direction === 'outbound' &&
+                    transfer.status === 'ready_to_ship' && (
+                        <Button
+                            className="h-11"
+                            disabled={form.processing}
+                            onClick={() => postTransferAction('ship')}
+                        >
+                            <Truck className="h-4 w-4" />
+                            Completar envio
+                        </Button>
+                    )}
+            </div>
         </div>
     );
 }

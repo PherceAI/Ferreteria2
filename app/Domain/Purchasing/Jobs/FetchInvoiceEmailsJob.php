@@ -14,6 +14,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -28,6 +29,16 @@ final class FetchInvoiceEmailsJob implements ShouldQueue
     public function __construct(
         private readonly int $branchId,
     ) {}
+
+    /**
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("fetch-invoice-emails:{$this->branchId}"))->expireAfter(900),
+        ];
+    }
 
     public function handle(
         GmailOAuthService $oauthService,

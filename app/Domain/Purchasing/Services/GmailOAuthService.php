@@ -12,7 +12,7 @@ use RuntimeException;
 
 final class GmailOAuthService
 {
-    public function getAuthUrl(): string
+    public function getAuthUrl(?string $state = null): string
     {
         $params = http_build_query([
             'client_id' => config('gmail_inbox.client_id'),
@@ -21,7 +21,7 @@ final class GmailOAuthService
             'scope' => implode(' ', config('gmail_inbox.scopes')),
             'access_type' => 'offline',
             'prompt' => 'consent',
-        ]);
+        ] + ($state !== null ? ['state' => $state] : []));
 
         return config('gmail_inbox.auth_endpoint').'?'.$params;
     }

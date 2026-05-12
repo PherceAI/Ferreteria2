@@ -1,4 +1,9 @@
 {
+    "agents": [
+        "claude_code",
+        "codex",
+        "opencode"
+    ],
     "guidelines": true,
     "mcp": true,
     "nightwatch_mcp": false,

@@ -1,5 +1,6 @@
 <?php
 
+use App\Domain\Inventory\Services\BranchStockMatrixImportService;
 use App\Domain\Inventory\Services\InventoryProductImportService;
 use App\Domain\Inventory\Services\ValuedInventoryImportService;
 use App\Domain\Logistics\Services\FleetTelemetryService;
@@ -47,6 +48,30 @@ Artisan::command('inventory:import-products {file} {--branch=1} {--source=csv}',
     return self::SUCCESS;
 })->purpose('Importar productos de inventario por sucursal desde un CSV limpio');
 
+Artisan::command('inventory:import-branch-stock-matrix {file} {--source=branch-stock-matrix}', function (BranchStockMatrixImportService $importer): int {
+    $file = (string) $this->argument('file');
+    $source = (string) $this->option('source');
+
+    if (! is_file($file)) {
+        $this->error("No se encontro el archivo: {$file}");
+
+        return self::FAILURE;
+    }
+
+    $result = $importer->importCsv($file, $source);
+
+    $this->info('Inventario multi-bodega importado.');
+    $this->line("Filas guardadas/actualizadas: {$result['imported']}");
+    $this->line("Filas omitidas: {$result['skipped']}");
+    $this->line("Filas con bodega no configurada: {$result['unknown_branch']}");
+
+    foreach ($result['by_branch'] as $warehouseCode => $count) {
+        $this->line("Bodega {$warehouseCode}: {$count}");
+    }
+
+    return self::SUCCESS;
+})->purpose('Importar stock de productos por bodegas 10/20/30/40 desde CSV exportado de TINI');
+
 Artisan::command('inventory:import-valued {file} {--branch=1} {--source=valued-csv}', function (ValuedInventoryImportService $importer): int {
     $file = (string) $this->argument('file');
     $branchId = (int) $this->option('branch');
@@ -70,6 +95,7 @@ Artisan::command('inventory:import-valued {file} {--branch=1} {--source=valued-c
 
     $this->info("Inventario valorado importado para {$branch->name}.");
     $this->line("Productos actualizados: {$result['matched']}");
+    $this->line("Productos creados desde el valorado: {$result['created']}");
     $this->line("Codigos del archivo sin producto existente: {$result['missing']}");
     $this->line("Filas omitidas: {$result['skipped']}");
 

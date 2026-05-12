@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Inventory\BranchTransferController;
 use App\Http\Controllers\Inventory\InventoryProductController;
 use App\Http\Controllers\Logistics\FleetController;
 use App\Http\Controllers\Notifications\PushSubscriptionController;
 use App\Http\Controllers\Purchasing\GmailOAuthController;
+use App\Http\Controllers\Purchasing\PurchasingController;
 use App\Http\Controllers\Purchasing\PurchasingReceiptController;
 use App\Http\Controllers\Team\EmployeeController;
 use Illuminate\Support\Facades\Route;
@@ -43,11 +45,18 @@ Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('products', [InventoryProductController::class, 'index'])->name('products.index');
-        Route::inertia('transfers', 'inventory/transfers/index')->name('transfers.index');
+        Route::get('transfers', [BranchTransferController::class, 'index'])->name('transfers.index');
+        Route::post('transfers', [BranchTransferController::class, 'store'])->name('transfers.store');
+        Route::post('transfers/{transfer}/start-preparing', [BranchTransferController::class, 'startPreparing'])->name('transfers.start-preparing');
+        Route::post('transfers/{transfer}/ready-to-ship', [BranchTransferController::class, 'readyToShip'])->name('transfers.ready-to-ship');
+        Route::post('transfers/{transfer}/ship', [BranchTransferController::class, 'ship'])->name('transfers.ship');
+        Route::post('transfers/{transfer}/receive', [BranchTransferController::class, 'receive'])->name('transfers.receive');
+        Route::post('transfers/{transfer}/complete-tini', [BranchTransferController::class, 'completeTini'])->name('transfers.complete-tini');
+        Route::post('transfers/{transfer}/cancel', [BranchTransferController::class, 'cancel'])->name('transfers.cancel');
     });
 
     Route::prefix('compras')->name('purchasing.')->group(function () {
-        Route::inertia('/', 'purchasing/index')->name('index');
+        Route::get('/', PurchasingController::class)->name('index');
         Route::get('recepcion', [PurchasingReceiptController::class, 'index'])->name('receipt.index');
         Route::post('recepcion/{confirmation}/iniciar', [PurchasingReceiptController::class, 'start'])->name('receipt.start');
         Route::post('recepcion/{confirmation}/confirmar', [PurchasingReceiptController::class, 'confirm'])->name('receipt.confirm');
@@ -56,6 +65,7 @@ Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
 
     Route::prefix('equipo')->name('team.')->group(function () {
         Route::get('empleados', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::post('empleados', [EmployeeController::class, 'store'])->name('employees.store');
         Route::put('empleados/{user}/branches', [EmployeeController::class, 'updateBranches'])->name('employees.branches.update');
         Route::put('empleados/{user}/roles', [EmployeeController::class, 'updateRoles'])->name('employees.roles.update');
         Route::patch('empleados/{user}/estado', [EmployeeController::class, 'updateStatus'])->name('employees.status.update');

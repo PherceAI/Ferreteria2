@@ -26,35 +26,45 @@ class DatabaseSeeder extends Seeder
         $ownerRole = Role::firstOrCreate(['name' => 'Dueño', 'guard_name' => 'web']);
         $accountingRole = Role::firstOrCreate(['name' => 'Contadora', 'guard_name' => 'web']);
         $purchasingRole = Role::firstOrCreate(['name' => 'Encargada Compras', 'guard_name' => 'web']);
+        $inventoryRole = Role::firstOrCreate(['name' => 'Encargado Inventario', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'Bodeguero', 'guard_name' => 'web']);
         Role::firstOrCreate(['name' => 'Vendedor', 'guard_name' => 'web']);
 
         $ownerRole->givePermissionTo($viewAllBranches);
         $accountingRole->givePermissionTo($viewAllBranches);
         $purchasingRole->givePermissionTo($viewAllBranches);
+        $inventoryRole->givePermissionTo($viewAllBranches);
 
         $branches = collect([
             [
-                'name' => 'Riobamba Matriz',
-                'code' => 'RIO1',
+                'name' => 'MATRIZ',
+                'code' => 'B10',
+                'warehouse_name' => 'BODEGA 10',
+                'warehouse_code' => '10',
                 'city' => 'Riobamba',
                 'is_headquarters' => true,
             ],
             [
-                'name' => 'Riobamba Norte',
-                'code' => 'RIO2',
+                'name' => 'SUCURSAL 1',
+                'code' => 'B20',
+                'warehouse_name' => 'BODEGA 20',
+                'warehouse_code' => '20',
                 'city' => 'Riobamba',
                 'is_headquarters' => false,
             ],
             [
-                'name' => 'Riobamba Sur',
-                'code' => 'RIO3',
+                'name' => 'SUCURSAL 3',
+                'code' => 'B30',
+                'warehouse_name' => 'BODEGA 30',
+                'warehouse_code' => '30',
                 'city' => 'Riobamba',
                 'is_headquarters' => false,
             ],
             [
-                'name' => 'Macas',
-                'code' => 'MAC1',
+                'name' => 'SUCURSAL 4',
+                'code' => 'B40',
+                'warehouse_name' => 'BODEGA 40',
+                'warehouse_code' => '40',
                 'city' => 'Macas',
                 'is_headquarters' => false,
             ],

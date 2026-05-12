@@ -14,7 +14,7 @@ Use `search-docs` for detailed Laravel Pulse patterns and documentation, includi
 
 ## Installation
 
-Pulse stores data in your application's PostgreSQL database for this project.
+Pulse stores data in your application's database. The current package supports MySQL, MariaDB, PostgreSQL, and SQLite.
 
 ```bash
 composer require laravel/pulse

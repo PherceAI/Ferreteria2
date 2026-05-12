@@ -2,3 +2,6 @@
 command = "php"
 args = ["artisan", "boost:mcp", "--env=local"]
 cwd = "C:\\Users\\WinUserX\\Pictures\\Ferreteria\\app"
+
+[mcp_servers.laravel-boost.env]
+APP_ENV = "local"
