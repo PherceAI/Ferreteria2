@@ -129,4 +129,15 @@ jobs:
         run: npm run build
 
       - name: Tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ferreteria_test
+          DB_USERNAME: ferreteria_app
+          DB_PASSWORD: ferreteria_local
+          DB_ETL_HOST: 127.0.0.1
+          DB_ETL_PORT: 5432
+          DB_ETL_DATABASE: ferreteria_test
+          DB_ETL_USERNAME: ferreteria_etl
+          DB_ETL_PASSWORD: ferreteria_local
         run: ./vendor/bin/phpunit
