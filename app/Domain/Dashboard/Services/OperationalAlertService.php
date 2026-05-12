@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Dashboard\Services;
 
-use App\Domain\Inventory\Models\InventoryProduct;
+use App\Domain\Inventory\Services\InventoryAlertSettingService;
 use App\Domain\Purchasing\Models\PurchaseInvoice;
 use App\Domain\Warehouse\Models\BranchTransfer;
 use App\Models\Branch;
@@ -13,6 +13,10 @@ use Illuminate\Support\Collection;
 
 final class OperationalAlertService
 {
+    public function __construct(
+        private readonly InventoryAlertSettingService $inventoryAlerts,
+    ) {}
+
     /**
      * @return array<int, array{id:string,type:string,title:string,message:string,timestamp:string,href:string,actionText:string,isRead:bool}>
      */
@@ -161,37 +165,7 @@ final class OperationalAlertService
      */
     private function inventoryAlerts(array $branchIds, Collection $branchNames): Collection
     {
-        return InventoryProduct::withoutBranchScope()
-            ->whereIn('branch_id', $branchIds)
-            ->where('min_stock', '>', 0)
-            ->whereColumn('current_stock', '<=', 'min_stock')
-            ->orderBy('current_stock')
-            ->limit(4)
-            ->get()
-            ->map(function (InventoryProduct $product) use ($branchNames): array {
-                $branchName = $branchNames[(int) $product->branch_id] ?? 'Sucursal';
-
-                return [
-                    'id' => "low-stock-{$product->id}",
-                    'type' => ((float) $product->current_stock) <= 0 ? 'critical' : 'high',
-                    'title' => 'Stock bajo',
-                    'message' => sprintf(
-                        '%s: %s tiene %s %s disponibles.',
-                        $branchName,
-                        $product->name,
-                        number_format((float) $product->current_stock, 2),
-                        $product->unit ?? 'unidades',
-                    ),
-                    'timestamp' => $product->inventory_updated_at?->diffForHumans(short: true)
-                        ?? $product->updated_at?->diffForHumans(short: true)
-                        ?? '',
-                    'href' => route('inventory.products.index', ['search' => $product->code], false),
-                    'actionText' => 'Ver producto',
-                    'sort' => $product->inventory_updated_at?->getTimestamp()
-                        ?? $product->updated_at?->getTimestamp()
-                        ?? 0,
-                ];
-            });
+        return $this->inventoryAlerts->quantityAlerts($branchIds, $branchNames);
     }
 
     private function transferStatusLabel(string $status): string

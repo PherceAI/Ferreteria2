@@ -59,6 +59,10 @@ export function AppSidebar() {
                           href: '/inventory/products',
                       },
                       {
+                          title: 'Alertas',
+                          href: '/inventory/alerts',
+                      },
+                      {
                           title: 'Traspasos',
                           href: '/inventory/transfers',
                       },

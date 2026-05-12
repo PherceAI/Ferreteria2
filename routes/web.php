@@ -3,6 +3,7 @@
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Inventory\BranchTransferController;
+use App\Http\Controllers\Inventory\InventoryAlertSettingsController;
 use App\Http\Controllers\Inventory\InventoryProductController;
 use App\Http\Controllers\Logistics\FleetController;
 use App\Http\Controllers\Notifications\PushSubscriptionController;
@@ -45,6 +46,8 @@ Route::middleware(['auth', 'verified', 'branch.required'])->group(function () {
 
     Route::prefix('inventory')->name('inventory.')->group(function () {
         Route::get('products', [InventoryProductController::class, 'index'])->name('products.index');
+        Route::get('alerts', [InventoryAlertSettingsController::class, 'index'])->name('alerts.index');
+        Route::post('alerts/settings', [InventoryAlertSettingsController::class, 'store'])->name('alerts.settings.store');
         Route::get('transfers', [BranchTransferController::class, 'index'])->name('transfers.index');
         Route::post('transfers', [BranchTransferController::class, 'store'])->name('transfers.store');
         Route::post('transfers/{transfer}/start-preparing', [BranchTransferController::class, 'startPreparing'])->name('transfers.start-preparing');

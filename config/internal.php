@@ -17,6 +17,7 @@ return [
     'team_admin_roles' => $ownerRoles,
     'warehouse_roles' => $warehouseRoles,
     'inventory_control_roles' => $inventoryControlRoles,
+    'inventory_alert_roles' => [...$ownerRoles, 'Encargada Compras'],
     'purchasing_roles' => [...$purchasingAdminRoles, ...$inventoryControlRoles],
     'gmail_oauth_roles' => [...$ownerRoles, 'Encargada Compras'],
     'logistics_roles' => [...$ownerRoles, ...$inventoryControlRoles],
