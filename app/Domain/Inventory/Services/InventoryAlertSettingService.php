@@ -7,6 +7,7 @@ namespace App\Domain\Inventory\Services;
 use App\Domain\Inventory\Models\InventoryAlertSetting;
 use App\Domain\Inventory\Models\InventoryProduct;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 final class InventoryAlertSettingService
 {
@@ -109,6 +110,10 @@ final class InventoryAlertSettingService
         array $settings,
         int $userId,
     ): InventoryAlertSetting {
+        if (! $this->settingsTableExists()) {
+            throw new \RuntimeException('Inventory alert settings table does not exist.');
+        }
+
         return InventoryAlertSetting::withoutBranchScope()->updateOrCreate(
             [
                 'branch_id' => $branchId,
@@ -128,6 +133,10 @@ final class InventoryAlertSettingService
      */
     public function effectiveSettingsForProduct(InventoryProduct $product): array
     {
+        if (! $this->settingsTableExists()) {
+            return $this->fallbackGlobalSettings();
+        }
+
         $settings = InventoryAlertSetting::withoutBranchScope()
             ->where('branch_id', $product->branch_id)
             ->where(function ($query) use ($product): void {
@@ -152,13 +161,7 @@ final class InventoryAlertSettingService
             ->first();
 
         if (! $settings instanceof InventoryAlertSetting) {
-            return [
-                'scope_type' => InventoryAlertSetting::SCOPE_GLOBAL,
-                'scope_key' => '',
-                'scope_label' => 'Alertas globales',
-                'settings' => $this->defaultSettings(),
-                'source' => 'default',
-            ];
+            return $this->fallbackGlobalSettings();
         }
 
         return [
@@ -177,6 +180,10 @@ final class InventoryAlertSettingService
      */
     public function quantityAlerts(array $branchIds, Collection $branchNames, int $limit = 4): Collection
     {
+        if (! $this->settingsTableExists()) {
+            return collect();
+        }
+
         $settingsByScope = InventoryAlertSetting::withoutBranchScope()
             ->whereIn('branch_id', $branchIds)
             ->get()
@@ -279,6 +286,14 @@ final class InventoryAlertSettingService
             }
         }
 
+        return $this->fallbackGlobalSettings();
+    }
+
+    /**
+     * @return array{scope_type:string, scope_key:string, scope_label:string, settings:array<string, mixed>, source:string}
+     */
+    private function fallbackGlobalSettings(): array
+    {
         return [
             'scope_type' => InventoryAlertSetting::SCOPE_GLOBAL,
             'scope_key' => '',
@@ -291,5 +306,10 @@ final class InventoryAlertSettingService
     private function settingKey(int $branchId, string $scopeType, string $scopeKey): string
     {
         return "{$branchId}:{$scopeType}:{$scopeKey}";
+    }
+
+    public function settingsTableExists(): bool
+    {
+        return Schema::hasTable('pherce_intel.inventory_alert_settings');
     }
 }

@@ -53,6 +53,7 @@ final class InventoryAlertSettingsController extends Controller
     public function store(Request $request): RedirectResponse
     {
         abort_unless($this->canEdit($request), 403);
+        abort_unless($this->settings->settingsTableExists(), 503, 'La tabla de configuracion de alertas no existe. Ejecuta las migraciones.');
 
         $branchId = (int) Context::get('branch_id');
         $validated = $request->validate($this->rules());
@@ -183,6 +184,10 @@ final class InventoryAlertSettingsController extends Controller
      */
     private function specializedItems(int $branchId): array
     {
+        if (! $this->settings->settingsTableExists()) {
+            return [];
+        }
+
         return InventoryAlertSetting::query()
             ->forBranch($branchId)
             ->where('scope_type', InventoryAlertSetting::SCOPE_PRODUCT)
@@ -201,6 +206,16 @@ final class InventoryAlertSettingsController extends Controller
      */
     private function settingPayload(int $branchId, string $scopeType, string $scopeKey): array
     {
+        if (! $this->settings->settingsTableExists()) {
+            return [
+                'scope_type' => $scopeType,
+                'scope_key' => $scopeType === InventoryAlertSetting::SCOPE_GLOBAL ? '' : $scopeKey,
+                'scope_label' => $scopeType === InventoryAlertSetting::SCOPE_GLOBAL ? 'Alertas globales' : $scopeKey,
+                'settings' => $this->settings->defaultSettings(),
+                'exists' => false,
+            ];
+        }
+
         $setting = InventoryAlertSetting::query()
             ->forBranch($branchId)
             ->where('scope_type', $scopeType)
